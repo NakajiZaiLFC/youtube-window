@@ -1,38 +1,36 @@
 // extension/content/adSkipper.js
 
-// 純粋: プレイヤー状態から取るべき広告対応を決める
+// 純粋: 広告中なら 'skip'、それ以外は 'none'。
+// （合成クリックは YouTube に無視されるため、スキップ可否で分岐せず常に skip 処理を行う）
 export function decideAdAction(state) {
-  if (!state.adShowing) return 'none';
-  if (state.skipButtonPresent && state.skipButtonEnabled) return 'click-skip';
-  return 'mute-and-wait';
+  return state.adShowing ? 'skip' : 'none';
 }
 
-// 薄い適用関数（手動確認）。video/document と現行 selectors を受けて副作用を起こす。
-// fast-forward は best-effort（設計書 §4.2: 広告中シーク禁止の可能性あり、PoC は Task 13）。
+// 広告スキップの本体。最も確実なのは「広告動画を末尾へ早送りして即終了させる」こと。
+// 併せてミュート＆スキップボタンのクリック（効く場合の保険）も行う。
 export function applyAdAction(action, { doc, video, selectors }) {
-  switch (action) {
-    case 'click-skip': {
-      const btn = doc.querySelector(selectors.skipButton.css);
-      if (btn) {
-        btn.click();
-        // YouTube が合成 click を無視する場合に備え、実ポインタ操作も発火
-        try {
-          const view = doc.defaultView || (typeof window !== 'undefined' ? window : undefined);
-          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((type) => {
-            btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view }));
-          });
-        } catch {}
-      }
-      break;
+  if (action !== 'skip') return;
+
+  // 1) ミュート（早送りが効かない一瞬の保険）
+  if (video && !video.muted) video.muted = true;
+
+  // 2) 広告動画を末尾へ早送り（= 実質スキップ）。これが効く環境が大半。
+  try {
+    if (video && isFinite(video.duration) && video.duration > 0) {
+      video.currentTime = video.duration;
     }
-    case 'mute-and-wait': {
-      if (video && !video.muted) video.muted = true;
-      // best-effort 早送り（効かない環境では無視される）
-      try { if (video && isFinite(video.duration)) video.currentTime = video.duration; } catch {}
-      break;
-    }
-    default:
-      break;
+  } catch {}
+
+  // 3) スキップボタンがあればクリックも試す（click + 実ポインタ操作）
+  const btn = doc && selectors ? doc.querySelector(selectors.skipButton.css) : null;
+  if (btn) {
+    try {
+      btn.click();
+      const view = doc.defaultView || (typeof window !== 'undefined' ? window : undefined);
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((type) => {
+        btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view }));
+      });
+    } catch {}
   }
 }
 

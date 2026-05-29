@@ -6,43 +6,59 @@ describe('decideAdAction', () => {
   it('returns none when no ad is showing', () => {
     expect(decideAdAction({ adShowing: false })).toBe('none');
   });
-  it('clicks skip when skip button is present and enabled', () => {
-    expect(decideAdAction({ adShowing: true, skipButtonPresent: true, skipButtonEnabled: true }))
-      .toBe('click-skip');
-  });
-  it('mutes and waits when skip button present but still counting down', () => {
-    expect(decideAdAction({ adShowing: true, skipButtonPresent: true, skipButtonEnabled: false }))
-      .toBe('mute-and-wait');
-  });
-  it('mutes and waits for unskippable ad (no skip button)', () => {
-    expect(decideAdAction({ adShowing: true, skipButtonPresent: false }))
-      .toBe('mute-and-wait');
+  it('returns skip whenever an ad is showing (skippable or not)', () => {
+    expect(decideAdAction({ adShowing: true, skipButtonPresent: true, skipButtonEnabled: true })).toBe('skip');
+    expect(decideAdAction({ adShowing: true, skipButtonPresent: true, skipButtonEnabled: false })).toBe('skip');
+    expect(decideAdAction({ adShowing: true, skipButtonPresent: false })).toBe('skip');
   });
 });
 
-// I-2: applyAdAction と unmuteIfNeeded の適用関数テスト
-describe('applyAdAction – mute-and-wait', () => {
-  it('mutes video on mute-and-wait action', () => {
+// applyAdAction('skip'): ミュート＋末尾へ早送り＋スキップボタンclick
+describe('applyAdAction – skip', () => {
+  const noSel = { doc: null, selectors: null };
+
+  it('mutes the ad video', () => {
     const video = { muted: false, duration: NaN, currentTime: 0 };
-    applyAdAction('mute-and-wait', { video });
+    applyAdAction('skip', { video, ...noSel });
     expect(video.muted).toBe(true);
   });
 
-  it('attempts to set currentTime=duration for a finite-duration video (best-effort)', () => {
+  it('fast-forwards a finite-duration ad to its end', () => {
     const video = { muted: false, duration: 30, currentTime: 0 };
-    applyAdAction('mute-and-wait', { video });
+    applyAdAction('skip', { video, ...noSel });
     expect(video.currentTime).toBe(30);
   });
 
-  it('does not throw even when setting currentTime throws (best-effort)', () => {
+  it('does not seek when duration is not finite', () => {
+    const video = { muted: false, duration: Infinity, currentTime: 5 };
+    applyAdAction('skip', { video, ...noSel });
+    expect(video.currentTime).toBe(5);
+  });
+
+  it('does not throw when seeking throws (best-effort)', () => {
     const video = {
-      muted: false,
-      duration: 30,
+      muted: false, duration: 30,
       get currentTime() { return 0; },
       set currentTime(_v) { throw new Error('seek blocked'); },
     };
-    expect(() => applyAdAction('mute-and-wait', { video })).not.toThrow();
+    expect(() => applyAdAction('skip', { video, ...noSel })).not.toThrow();
     expect(video.muted).toBe(true);
+  });
+
+  it('clicks the skip button when present', () => {
+    let clicked = 0;
+    const btn = { click() { clicked++; }, dispatchEvent() {} };
+    const doc = { querySelector: () => btn, defaultView: undefined };
+    const video = { muted: true, duration: 10, currentTime: 0 };
+    applyAdAction('skip', { doc, video, selectors: { skipButton: { css: '.x' } } });
+    expect(clicked).toBeGreaterThan(0);
+  });
+
+  it('does nothing for non-skip actions', () => {
+    const video = { muted: false, duration: 30, currentTime: 0 };
+    applyAdAction('none', { video, ...noSel });
+    expect(video.muted).toBe(false);
+    expect(video.currentTime).toBe(0);
   });
 });
 
