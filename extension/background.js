@@ -1,6 +1,6 @@
 // extension/background.js
 import { isValidSelectors } from './content/validators.js'; // JSON import を持たない SW-safe モジュール
-import { toWatchUrl } from './content/urlUtils.js';          // 純粋関数（JSON import なし）
+import { toWatchUrl, extractListId, buildWatchUrl } from './content/urlUtils.js'; // 純粋関数（JSON import なし）
 
 const ALARM = 'daily-selector-refresh';
 // TODO(Phase 2 で確定): リモート selectors.json の raw URL。Phase 1 では空＝no-op が正常。
@@ -22,8 +22,28 @@ async function setPlayerTabId(id) {
 // ★ 重要: 裏(active:false)で読み込むと YouTube が不正な配信ノードを返し再生失敗
 //   (ERR_NAME_NOT_RESOLVED / "not available on this device")。手動クリック=前面なら再生OK。
 //   そこで「前面で開いて再生を確実に開始 → playerStarted を受けたら元のタブへ戻して裏へ回す」。
+// プレイリストの先頭動画IDを取得（watch?v=&list= の空v問題を避けるため）。
+// 拡張は youtube.com の host_permissions を持つので SW から CORS なしで取得できる。
+async function firstVideoId(listId) {
+  try {
+    const res = await fetch(`https://www.youtube.com/playlist?list=${listId}`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const m = text.match(/"videoId":"([A-Za-z0-9_-]{11})"/);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 async function openPlayer(url) {
-  const watch = toWatchUrl(url);
+  // 先頭動画ID付きの URL を組み立てる（空 v だと再生が不安定なため）。失敗時は従来の watch?list=。
+  const listId = extractListId(url);
+  let watch = toWatchUrl(url);
+  if (listId) {
+    const vid = await firstVideoId(listId);
+    if (vid) watch = buildWatchUrl(listId, vid);
+  }
   await loadPlayerTabId();
   // 再生開始後に戻る先（今アクティブなタブ）を覚えておく
   try {

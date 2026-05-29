@@ -17,3 +17,11 @@ export function toWatchUrl(url) {
   if (list) return `https://www.youtube.com/watch?list=${list}`;
   return url;
 }
+
+// 先頭動画ID付きの watch URL を組み立てる。空 v だと再生開始が不安定なため、
+// videoId が分かる場合は watch?v=<id>&list=<list> を使う（手動クリック相当）。
+export function buildWatchUrl(listId, videoId) {
+  if (videoId && listId) return `https://www.youtube.com/watch?v=${videoId}&list=${listId}`;
+  if (listId) return `https://www.youtube.com/watch?list=${listId}`;
+  return null;
+}

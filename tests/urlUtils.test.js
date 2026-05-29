@@ -1,6 +1,6 @@
 // tests/urlUtils.test.js
 import { describe, it, expect } from 'vitest';
-import { extractListId, toWatchUrl } from '../extension/content/urlUtils.js';
+import { extractListId, toWatchUrl, buildWatchUrl } from '../extension/content/urlUtils.js';
 
 describe('extractListId', () => {
   it('extracts list from a playlist URL with tracking param', () => {
@@ -29,5 +29,18 @@ describe('toWatchUrl', () => {
   it('returns the original URL when no list is present', () => {
     expect(toWatchUrl('https://www.youtube.com/watch?v=AAA'))
       .toBe('https://www.youtube.com/watch?v=AAA');
+  });
+});
+
+describe('buildWatchUrl', () => {
+  it('builds watch?v=&list= with a known first video', () => {
+    expect(buildWatchUrl('PLo5', 'abc12345678'))
+      .toBe('https://www.youtube.com/watch?v=abc12345678&list=PLo5');
+  });
+  it('falls back to watch?list= when videoId is missing', () => {
+    expect(buildWatchUrl('PLo5', null)).toBe('https://www.youtube.com/watch?list=PLo5');
+  });
+  it('returns null when listId is missing', () => {
+    expect(buildWatchUrl(null, 'abc')).toBeNull();
   });
 });

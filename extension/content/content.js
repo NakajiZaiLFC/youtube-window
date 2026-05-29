@@ -15,6 +15,7 @@ let observer = null;
 let rafQueued = false;
 let restarting = false;
 let startedNotified = false; // 再生開始を background に1回だけ通知したか
+let lastAdAction = null;     // 広告中のアクション変化をログするため
 
 function getVideo() { return document.querySelector('video'); }
 
@@ -42,9 +43,14 @@ function tick() {
       applyAdAction(action, { doc: document, video, selectors });
       // 自分がミュートしたフレームだけ weMuted を立てる
       if (video && video.muted && !wasMutedBefore) weMuted = true;
+      // 広告中のアクション変化を実況ログ（mute-and-wait → click-skip 等）
+      if (adState.adShowing && action !== lastAdAction) {
+        console.info('[yt-ext] 広告', action, '| skipBtn:', adState.skipButtonPresent,
+          'enabled:', adState.skipButtonEnabled, '| hidden:', document.hidden);
+        lastAdAction = action;
+      }
       // 広告開始エッジで実広告 DOM を記録
       if (adState.adShowing && !lastAdShowing) {
-        console.info('[yt-ext] 広告検出', { skipButtonPresent: adState.skipButtonPresent, action });
         const player = document.querySelector(selectors.adShowing.css);
         if (player) captureAdDom(player, { url: location.href });
       }
@@ -52,6 +58,7 @@ function tick() {
       if (!adState.adShowing && lastAdShowing) {
         unmuteIfNeeded(video, weMuted);
         weMuted = false;
+        lastAdAction = null;
       }
       lastAdShowing = adState.adShowing;
     }
