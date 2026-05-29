@@ -35,19 +35,33 @@ async function openPlayer(url) {
   const win = await chrome.windows.create({
     url: watch, type: 'popup', width: 480, height: 300, focused: false,
   });
-  await setPlayerTabId(win.tabs?.[0]?.id ?? null);
+  let id = win.tabs?.[0]?.id ?? null;
+  if (id == null) { // 一部環境で win.tabs が空のことがある
+    const ts = await chrome.tabs.query({ windowId: win.id });
+    id = ts[0]?.id ?? null;
+  }
+  await setPlayerTabId(id);
   return { ok: true, reused: false };
 }
 
 // popup からの制御メッセージを再生タブへ転送する。
+// 「窓が閉じた(closed)」と「読み込み中で未準備(loading)」を区別する。
 async function forwardToPlayer(msg) {
   await loadPlayerTabId();
   if (playerTabId == null) return { ok: false, error: 'not-open' };
+  // タブ自体が存在するか確認（無ければ本当に閉じた → 追跡解除）
+  try {
+    await chrome.tabs.get(playerTabId);
+  } catch {
+    await setPlayerTabId(null);
+    return { ok: false, error: 'not-open' };
+  }
+  // タブは在る。content script 未注入/読み込み中なら sendMessage が失敗するが、
+  // それは一時的なので tabId は保持して 'loading' を返す。
   try {
     return await chrome.tabs.sendMessage(playerTabId, msg);
   } catch (e) {
-    await setPlayerTabId(null);
-    return { ok: false, error: 'not-open' };
+    return { ok: false, error: 'loading' };
   }
 }
 

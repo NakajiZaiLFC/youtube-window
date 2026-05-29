@@ -20,13 +20,21 @@ function setStatus(text, idle) {
   st.classList.toggle('idle', !!idle);
 }
 
-function render(status, open) {
-  if (!open || !status) {
+function render(r) {
+  // r.error === 'loading' → 窓は在るが読み込み中。待ち表示。
+  if (r && r.error === 'loading') {
+    $('now').textContent = '読み込み中…';
+    setStatus('接続中…', false);
+    $('playpause').textContent = '▶';
+    return;
+  }
+  if (!r || !r.ok || !r.status) {
     $('now').textContent = '—';
     setStatus('停止中', true);
     $('playpause').textContent = '▶';
     return;
   }
+  const status = r.status;
   $('now').textContent = status.title || '読み込み中…';
   lastPlaying = status.playing;
   $('playpause').textContent = status.playing ? '⏸' : '▶';
@@ -36,8 +44,7 @@ function render(status, open) {
 }
 
 async function poll() {
-  const r = await bg({ type: 'getStatus' });
-  render(r && r.ok ? r.status : null, !!(r && r.ok));
+  render(await bg({ type: 'getStatus' }));
 }
 
 async function load() {
