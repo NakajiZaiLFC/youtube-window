@@ -141,6 +141,7 @@ $('export').onclick = async () => {
 };
 
 async function load() {
+  try { $('ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch {}
   const s = await getSettings();
   $('loop').classList.toggle('on', s.loop);
   wireLoop();

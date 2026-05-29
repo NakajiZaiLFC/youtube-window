@@ -20,7 +20,9 @@
 
   /* header */
   .brand { display:flex; align-items:center; justify-content:space-between; padding:0 4px 14px; }
+  .brand-l { display:flex; align-items:baseline; gap:7px; }
   .brand-name { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
+  #ver { font-size:10px; font-weight:500; color:var(--text-3); font-variant-numeric:tabular-nums; }
   /* loop = icon-only ghost toggle */
   #loop { font-size:18px; line-height:1; background:none; border:none; cursor:pointer;
           color:var(--text-3); width:30px; height:30px; border-radius:50%; transition:.15s; }
@@ -70,7 +72,10 @@
 </head>
 <body>
   <div class="brand">
-    <div class="brand-name">Hi-Fi Player</div>
+    <div class="brand-l">
+      <span class="brand-name">Hi-Fi Player</span>
+      <span id="ver"></span>
+    </div>
     <button id="loop" title="リピート" aria-label="リピート">🔁</button>
   </div>
 

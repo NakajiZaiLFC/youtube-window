@@ -1,12 +1,14 @@
 {
   "name": "yt-playlist-adfree-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "bump": "npm version patch --no-git-tag-version && npm run build",
+    "bump:minor": "npm version minor --no-git-tag-version && npm run build"
   },
   "devDependencies": {
     "esbuild": "^0.21.0",
