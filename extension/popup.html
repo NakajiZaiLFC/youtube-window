@@ -6,291 +6,90 @@
 <title>Hi-Fi Player</title>
 <style>
   :root {
-    --bg:        #f5f5f7;
-    --card:      #ffffff;
-    --text:      #1d1d1f;
-    --text-2:    #86868b;
-    --text-3:    #a1a1a6;
-    --sep:       rgba(0,0,0,.08);
-    --fill:      #ececef;
-    --fill-2:    #e3e3e6;
-    --accent:    #f4a259;
-    --accent-d:  #d98a3d;
-    --accent-ink:#4a2e16;
-    --radius:    14px;
+    --bg:#f5f5f7; --card:#fff; --text:#1d1d1f; --text-2:#86868b; --text-3:#a1a1a6;
+    --sep:rgba(0,0,0,.08); --fill:#ececef; --fill-2:#e3e3e6;
+    --accent:#f4a259; --accent-d:#d98a3d; --accent-ink:#4a2e16; --radius:14px;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
+  * { box-sizing:border-box; margin:0; padding:0; }
   html, body {
-    width: 300px;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
+    width:300px; background:var(--bg); color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased; letter-spacing:-0.01em;
   }
+  body { padding:16px 14px 12px; }
 
-  body { padding: 16px 14px 14px; }
+  /* header */
+  .brand { display:flex; align-items:center; justify-content:space-between; padding:0 4px 14px; }
+  .brand-name { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
+  /* loop = icon-only ghost toggle */
+  #loop { font-size:18px; line-height:1; background:none; border:none; cursor:pointer;
+          color:var(--text-3); width:30px; height:30px; border-radius:50%; transition:.15s; }
+  #loop:hover { background:var(--fill); }
+  #loop.on { color:var(--accent); background:rgba(244,162,89,.14); }
 
-  /* ── header ───────────────────────────────────────── */
-  .brand {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 4px 14px;
-  }
-  .brand-name {
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  .brand-sub {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-3);
-  }
+  /* now playing */
+  .now-card { background:var(--card); border-radius:var(--radius); padding:16px 16px 14px;
+              box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .now-label { font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+               color:var(--text-3); margin-bottom:7px; }
+  .marquee { overflow:hidden; white-space:nowrap; }
+  #now { display:inline-block; white-space:nowrap; font-size:19px; font-weight:600;
+         letter-spacing:-0.02em; line-height:1.25; will-change:transform; }
+  #now.scroll { animation:walk var(--dur,8s) ease-in-out infinite alternate; }
+  @keyframes walk { 0%,18%{transform:translateX(0)} 82%,100%{transform:translateX(var(--shift,0))} }
+  #status { display:inline-flex; align-items:center; gap:6px; margin-top:9px;
+            font-size:13px; font-weight:500; color:var(--text-2); }
+  #status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); }
+  #status.idle::before { background:var(--text-3); }
 
-  /* ── now playing ──────────────────────────────────── */
-  .now-card {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 16px 16px 18px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.04);
-  }
-  .now-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    margin-bottom: 7px;
-  }
-  #now {
-    font-size: 19px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 9px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-2);
-  }
-  #status::before {
-    content: "";
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-  /* 停止/一時停止時はドットを淡色に（JS が .idle を付与） */
-  #status.idle::before { background: var(--text-3); }
+  /* seek */
+  .seek { margin-top:13px; }
+  #seek { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
+          background:var(--fill-2); cursor:pointer; }
+  #seek::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+          background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.25); margin-top:0; }
+  .times { display:flex; justify-content:space-between; margin-top:5px;
+           font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
 
-  /* ── transport ────────────────────────────────────── */
-  .transport {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 26px;
-    padding: 20px 0 8px;
-  }
-  .tbtn {
-    font-family: inherit;
-    border: none;
-    background: none;
-    cursor: pointer;
-    color: var(--text);
-    display: grid;
-    place-items: center;
-    -webkit-user-select: none; user-select: none;
-    transition: opacity .15s ease, transform .1s ease;
-  }
-  .tbtn.side { width: 40px; height: 40px; font-size: 19px; color: var(--text); }
-  .tbtn.side:hover { opacity: .55; }
-  .tbtn.main {
-    width: 58px; height: 58px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-size: 22px;
-    box-shadow: 0 2px 8px rgba(244,162,89,.35);
-    transition: transform .1s ease, filter .15s ease;
-  }
-  .tbtn.main:hover { filter: brightness(1.04); }
-  .tbtn:active { transform: scale(.92); }
+  /* transport */
+  .transport { display:flex; align-items:center; justify-content:center; gap:26px; padding:18px 0 4px; }
+  .tbtn { font-family:inherit; border:none; background:none; cursor:pointer; color:var(--text);
+          display:grid; place-items:center; user-select:none; transition:opacity .15s, transform .1s; }
+  .tbtn.side { width:40px; height:40px; font-size:19px; }
+  .tbtn.side:hover { opacity:.55; }
+  .tbtn.main { width:60px; height:60px; border-radius:50%; background:var(--accent); color:var(--accent-ink);
+               font-size:23px; box-shadow:0 2px 8px rgba(244,162,89,.35); transition:transform .1s, filter .15s; }
+  .tbtn.main:hover { filter:brightness(1.04); }
+  .tbtn:active { transform:scale(.92); }
 
-  /* ── start ────────────────────────────────────────── */
-  #start {
-    width: 100%;
-    margin-top: 14px;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: #fff;
-    background: var(--accent);
-    border: none;
-    border-radius: 12px;
-    padding: 12px;
-    cursor: pointer;
-    transition: filter .15s ease, transform .1s ease;
-  }
-  #start:hover { filter: brightness(1.04); }
-  #start:active { transform: scale(.99); }
-
-  /* ── grouped settings card ────────────────────────── */
-  .group {
-    background: var(--card);
-    border-radius: var(--radius);
-    margin-top: 16px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.04);
-    overflow: hidden;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 13px 16px;
-  }
-  .row + .row { border-top: 1px solid var(--sep); }
-  .row .tg-label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text);
-  }
-
-  /* iOS-style switch (the whole #loop / #autoSkip is the control) */
-  .toggle { cursor: pointer; -webkit-user-select: none; user-select: none; }
-  .switch {
-    position: relative;
-    width: 44px; height: 26px;
-    border-radius: 13px;
-    background: var(--fill-2);
-    flex-shrink: 0;
-    transition: background .22s ease;
-  }
-  .lamp {
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,.2);
-    transition: transform .22s cubic-bezier(.4,.0,.2,1);
-  }
-  .toggle.on .switch { background: var(--accent); }
-  .toggle.on .lamp { transform: translateX(18px); }
-
-  /* ── url field ────────────────────────────────────── */
-  .field {
-    margin-top: 16px;
-  }
-  .field-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    margin: 0 4px 7px;
-  }
-  .field-row { display: flex; gap: 8px; }
-  #url {
-    flex: 1;
-    min-width: 0;
-    font-family: inherit;
-    font-size: 14px;
-    color: var(--text);
-    background: var(--card);
-    border: 1px solid var(--sep);
-    border-radius: 11px;
-    padding: 10px 12px;
-    transition: border-color .15s ease, box-shadow .15s ease;
-  }
-  #url::placeholder { color: var(--text-3); }
-  #url:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(244,162,89,.18);
-  }
-  #save {
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    background: var(--fill);
-    border: none;
-    border-radius: 11px;
-    padding: 0 16px;
-    cursor: pointer;
-    transition: background .15s ease;
-  }
-  #save:hover { background: var(--fill-2); }
-  #save:active { transform: scale(.98); }
-
-  /* ── export ───────────────────────────────────────── */
-  #export {
-    display: block;
-    width: 100%;
-    margin-top: 16px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent-d);
-    background: none;
-    border: none;
-    padding: 6px;
-    cursor: pointer;
-    transition: opacity .15s ease;
-  }
-  #export:hover { opacity: .6; }
+  /* footer */
+  #export { display:block; width:100%; margin-top:10px; font-family:inherit; font-size:11px;
+            font-weight:500; color:var(--text-3); background:none; border:none; padding:4px; cursor:pointer; }
+  #export:hover { color:var(--accent-d); }
 </style>
 </head>
 <body>
   <div class="brand">
     <div class="brand-name">Hi-Fi Player</div>
-    <div class="brand-sub">MV3</div>
+    <button id="loop" title="リピート" aria-label="リピート">🔁</button>
   </div>
 
   <section class="now-card">
     <div class="now-label">再生中の曲</div>
-    <div id="now">—</div>
-    <div id="status">停止中</div>
+    <div class="marquee"><span id="now">—</span></div>
+    <div id="status" class="idle">停止中</div>
+
+    <div class="seek">
+      <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+      <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
+    </div>
+
+    <div class="transport">
+      <button id="prev" class="tbtn side" title="前へ" aria-label="前へ">⏮</button>
+      <button id="playpause" class="tbtn main" title="再生 / 一時停止" aria-label="再生 / 一時停止">▶</button>
+      <button id="next" class="tbtn side" title="次へ" aria-label="次へ">⏭</button>
+    </div>
   </section>
-
-  <div class="transport">
-    <button id="prev" class="tbtn side" title="前へ" aria-label="前へ">⏮</button>
-    <button id="playpause" class="tbtn main" title="再生 / 一時停止" aria-label="再生 / 一時停止">▶</button>
-    <button id="next" class="tbtn side" title="次へ" aria-label="次へ">⏭</button>
-  </div>
-
-  <button id="start">プレイリストを開始</button>
-
-  <div class="group">
-    <div id="loop" class="row toggle" role="switch" tabindex="0" aria-label="ループ">
-      <span class="tg-label">ループ</span>
-      <span class="switch"><span class="lamp"></span></span>
-    </div>
-    <div id="autoSkip" class="row toggle" role="switch" tabindex="0" aria-label="広告スキップ">
-      <span class="tg-label">広告スキップ</span>
-      <span class="switch"><span class="lamp"></span></span>
-    </div>
-  </div>
-
-  <div class="field">
-    <label class="field-label" for="url">プレイリスト URL</label>
-    <div class="field-row">
-      <input id="url" type="text" placeholder="https://…" autocomplete="off" spellcheck="false">
-      <button id="save">保存</button>
-    </div>
-  </div>
 
   <button id="export">広告DOMを書き出す</button>
 

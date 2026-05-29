@@ -84,6 +84,7 @@ async function init() {
   // ここから同期セクション（await を挟まない）
   selectors = sel;
   settings = set;
+  settings.autoSkip = true; // 広告スキップは常時 ON（UI からは切れない）
   restarting = false;
   lastAdShowing = false; // 曲遷移で広告状態をリセット
   weMuted = false;
@@ -108,8 +109,9 @@ function currentStatus() {
     playing: !!(v && !v.paused && !v.ended && v.currentTime > 0),
     hasVideo: !!v,
     adShowing,
+    currentTime: v && isFinite(v.currentTime) ? v.currentTime : 0,
+    duration: v && isFinite(v.duration) ? v.duration : 0,
     loop: settings ? settings.loop : null,
-    autoSkip: settings ? settings.autoSkip : null,
   };
 }
 
@@ -122,17 +124,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       switch (msg.type) {
         case 'play': if (v) await v.play().catch(() => {}); break;
         case 'pause': if (v) v.pause(); break;
+        case 'seek': if (v && typeof msg.value === 'number' && isFinite(msg.value)) v.currentTime = msg.value; break;
         case 'next': clickNext(document, selectors); break;
         case 'prev': clickPrev(document, selectors); break;
         case 'setLoop': settings.loop = msg.value; break;
-        case 'setAutoSkip':
-          settings.autoSkip = msg.value;
-          if (!msg.value) { // OFF にしたら自分のミュートを解除し状態リセット
-            unmuteIfNeeded(getVideo(), weMuted);
-            weMuted = false;
-            lastAdShowing = false;
-          }
-          break;
       }
       sendResponse({ ok: true, status: currentStatus() });
     } catch (e) { sendResponse({ ok: false, error: String(e) }); }

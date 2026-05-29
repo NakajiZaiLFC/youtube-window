@@ -4,90 +4,127 @@ import { exportSnapshots } from './content/adSnapshotLogger.js';
 
 const $ = (id) => document.getElementById(id);
 
-// すべての制御は background（SW）経由で「裏の再生窓」へ送る
+// すべての制御は background（SW）経由で「裏の再生タブ」へ送る
 function bg(msg) {
   return chrome.runtime.sendMessage(msg).catch(() => ({ ok: false, error: 'no-bg' }));
 }
 
 let lastPlaying = false;
+let lastTitle = null;
+let seeking = false;
+let seekDur = 0; // 直近の総再生時間（シーク計算用）
 
-function setChip(id, on) { $(id).classList.toggle('on', !!on); }
+function fmt(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
 
-// #status はテキストのみ更新（ドットは CSS の ::before）。停止/一時停止は .idle で淡色化。
 function setStatus(text, idle) {
   const st = $('status');
   st.textContent = text;
   st.classList.toggle('idle', !!idle);
 }
 
+// ウォークマン風マーキー: はみ出す時だけ、端で止まりつつ往復スクロール
+function updateMarquee() {
+  const el = $('now');
+  el.classList.remove('scroll');
+  el.style.removeProperty('--shift');
+  el.style.removeProperty('--dur');
+  requestAnimationFrame(() => {
+    const overflow = el.scrollWidth - el.parentElement.clientWidth;
+    if (overflow > 4) {
+      el.style.setProperty('--shift', `-${overflow}px`);
+      el.style.setProperty('--dur', `${Math.max(6, overflow / 16 + 4)}s`);
+      el.classList.add('scroll');
+    }
+  });
+}
+
+function setTitle(title) {
+  if (title === lastTitle) return; // 同じ曲ならアニメをリセットしない
+  lastTitle = title;
+  $('now').textContent = title || '—';
+  updateMarquee();
+}
+
 function render(r) {
-  // r.error === 'loading' → 窓は在るが読み込み中。待ち表示。
   if (r && r.error === 'loading') {
-    $('now').textContent = '読み込み中…';
+    setTitle('読み込み中…');
     setStatus('接続中…', false);
     $('playpause').textContent = '▶';
     return;
   }
   if (!r || !r.ok || !r.status) {
-    $('now').textContent = '—';
+    setTitle('—');
     setStatus('停止中', true);
     $('playpause').textContent = '▶';
+    if (!seeking) { $('seek').value = 0; $('elapsed').textContent = '0:00'; $('duration').textContent = '0:00'; }
     return;
   }
-  const status = r.status;
-  $('now').textContent = status.title || '読み込み中…';
-  lastPlaying = status.playing;
-  $('playpause').textContent = status.playing ? '⏸' : '▶';
-  if (status.adShowing) setStatus('広告スキップ中…', false);
-  else if (status.playing) setStatus('再生中', false);
+  const s = r.status;
+  setTitle(s.title || '読み込み中…');
+  lastPlaying = s.playing;
+  $('playpause').textContent = s.playing ? '⏸' : '▶';
+  if (s.adShowing) setStatus('広告スキップ中…', false);
+  else if (s.playing) setStatus('再生中', false);
   else setStatus('一時停止', true);
+
+  seekDur = s.duration || 0;
+  if (!seeking) {
+    $('seek').value = seekDur ? Math.round((s.currentTime / seekDur) * 1000) : 0;
+    $('elapsed').textContent = fmt(s.currentTime);
+    $('duration').textContent = fmt(seekDur);
+  }
 }
 
 async function poll() {
   render(await bg({ type: 'getStatus' }));
 }
 
-async function load() {
-  const s = await getSettings();
-  $('url').value = s.playlistUrl;
-  setChip('loop', s.loop);
-  setChip('autoSkip', s.autoSkip);
-  await poll();
-  setInterval(poll, 1000); // popup が閉じれば自動停止
-}
-
-$('start').onclick = async () => {
-  const s = await getSettings();
-  setStatus('起動中…', false);
-  await bg({ type: 'openPlaylist', url: s.playlistUrl });
-  setTimeout(poll, 1500);
-};
-
+// 再生ボタン = 未起動なら開始 / 起動済みなら 再生⇔一時停止
 $('playpause').onclick = async () => {
+  const o = await bg({ type: 'isOpen' });
+  if (!o || !o.open) {
+    const s = await getSettings();
+    setStatus('起動中…', false);
+    await bg({ type: 'openPlaylist', url: s.playlistUrl });
+    setTimeout(poll, 1500);
+    return;
+  }
   await bg({ type: lastPlaying ? 'pause' : 'play' });
   setTimeout(poll, 200);
 };
+
 $('next').onclick = async () => { await bg({ type: 'next' }); setTimeout(poll, 600); };
 $('prev').onclick = async () => { await bg({ type: 'prev' }); setTimeout(poll, 600); };
 
-function wireToggle(id, settingKey, msgType) {
-  const el = $(id);
-  const handler = async () => {
+// ループ（アイコンのみ）
+function wireLoop() {
+  const el = $('loop');
+  const toggle = async () => {
     const on = !el.classList.contains('on');
-    setChip(id, on);
-    await setSetting(settingKey, on);
-    bg({ type: msgType, value: on });
+    el.classList.toggle('on', on);
+    await setSetting('loop', on);
+    bg({ type: 'setLoop', value: on });
   };
-  el.onclick = handler;
-  el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } };
+  el.onclick = toggle;
+  el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
 }
-wireToggle('loop', 'loop', 'setLoop');
-wireToggle('autoSkip', 'autoSkip', 'setAutoSkip');
 
-$('save').onclick = async () => {
-  await setSetting('playlistUrl', $('url').value.trim());
-  setStatus('URL保存しました', false);
-};
+// シークバー
+$('seek').addEventListener('input', () => {
+  seeking = true;
+  $('elapsed').textContent = fmt(($('seek').value / 1000) * seekDur);
+});
+$('seek').addEventListener('change', async () => {
+  const time = ($('seek').value / 1000) * seekDur;
+  await bg({ type: 'seek', value: time });
+  seeking = false;
+  setTimeout(poll, 200);
+});
 
 $('export').onclick = async () => {
   const data = await exportSnapshots();
@@ -95,12 +132,20 @@ $('export').onclick = async () => {
   const url = URL.createObjectURL(blob);
   try {
     await chrome.downloads.download({ url, filename: 'youtube-ad-snapshots.json', saveAs: false });
-    $('status').textContent = `${data.length} 件エクスポート`;
+    setStatus(`${data.length} 件書き出し`, false);
   } catch (e) {
-    $('status').textContent = 'エクスポートに失敗しました';
+    setStatus('書き出しに失敗', true);
   } finally {
     URL.revokeObjectURL(url);
   }
 };
 
-load().catch(() => { $('status').textContent = '初期化に失敗しました'; });
+async function load() {
+  const s = await getSettings();
+  $('loop').classList.toggle('on', s.loop);
+  wireLoop();
+  await poll();
+  setInterval(poll, 1000);
+}
+
+load().catch(() => { setStatus('初期化に失敗', true); });

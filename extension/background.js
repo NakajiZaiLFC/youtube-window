@@ -24,23 +24,17 @@ async function openPlayer(url) {
   await loadPlayerTabId();
   if (playerTabId != null) {
     try {
-      const tab = await chrome.tabs.get(playerTabId);
+      await chrome.tabs.get(playerTabId);
       await chrome.tabs.update(playerTabId, { url: watch });
-      await chrome.windows.update(tab.windowId, { focused: false });
       return { ok: true, reused: true };
     } catch {
-      await setPlayerTabId(null); // 窓が閉じられていた
+      await setPlayerTabId(null); // タブが閉じられていた
     }
   }
-  const win = await chrome.windows.create({
-    url: watch, type: 'popup', width: 480, height: 300, focused: false,
-  });
-  let id = win.tabs?.[0]?.id ?? null;
-  if (id == null) { // 一部環境で win.tabs が空のことがある
-    const ts = await chrome.tabs.query({ windowId: win.id });
-    id = ts[0]?.id ?? null;
-  }
-  await setPlayerTabId(id);
+  // ★ type:'popup' 窓は YouTube に「未サポート環境」と判定され "not available on this device"
+  //   の代替動画を返されるため、普通のバックグラウンドタブで開く（コンテキスト拒否を回避）。
+  const tab = await chrome.tabs.create({ url: watch, active: false });
+  await setPlayerTabId(tab.id ?? null);
   return { ok: true, reused: false };
 }
 
@@ -65,7 +59,7 @@ async function forwardToPlayer(msg) {
   }
 }
 
-const FORWARD_TYPES = ['play', 'pause', 'next', 'prev', 'setLoop', 'setAutoSkip', 'getStatus'];
+const FORWARD_TYPES = ['play', 'pause', 'seek', 'next', 'prev', 'setLoop', 'getStatus'];
 
 async function refreshSelectors() {
   if (!REMOTE_URL) return; // Phase 1 は no-op
