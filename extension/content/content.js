@@ -43,6 +43,7 @@ function tick() {
       if (video && video.muted && !wasMutedBefore) weMuted = true;
       // 広告開始エッジで実広告 DOM を記録
       if (adState.adShowing && !lastAdShowing) {
+        console.info('[yt-ext] 広告検出', { skipButtonPresent: adState.skipButtonPresent, action });
         const player = document.querySelector(selectors.adShowing.css);
         if (player) captureAdDom(player, { url: location.href });
       }
@@ -91,6 +92,7 @@ async function init() {
   pollTimer = setInterval(tick, 500);
   observer = new MutationObserver(scheduleTick); // 変異は rAF に集約
   observer.observe(document.documentElement, { childList: true, subtree: true });
+  console.info('[yt-ext] 起動', { autoSkip: settings.autoSkip, loop: settings.loop, selectorsVersion: selectors && '(loaded)' });
 }
 
 // YouTube は SPA。曲遷移ごとに再初期化
