@@ -18,24 +18,39 @@ async function setPlayerTabId(id) {
   await chrome.storage.local.set({ playerTabId: id });
 }
 
-// プレイリストを「再生が始まる watch URL」にして、小さなバックグラウンド窓で開く（既存なら再利用）。
+// プレイリストを「再生が始まる watch URL」にして開く。
+// ★ 重要: 裏(active:false)で読み込むと YouTube が不正な配信ノードを返し再生失敗
+//   (ERR_NAME_NOT_RESOLVED / "not available on this device")。手動クリック=前面なら再生OK。
+//   そこで「前面で開いて再生を確実に開始 → playerStarted を受けたら元のタブへ戻して裏へ回す」。
 async function openPlayer(url) {
   const watch = toWatchUrl(url);
   await loadPlayerTabId();
+  // 再生開始後に戻る先（今アクティブなタブ）を覚えておく
+  try {
+    const [prev] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (prev?.id != null) await chrome.storage.local.set({ prevActiveTabId: prev.id });
+  } catch {}
+
   if (playerTabId != null) {
     try {
       await chrome.tabs.get(playerTabId);
-      await chrome.tabs.update(playerTabId, { url: watch });
+      await chrome.tabs.update(playerTabId, { url: watch, active: true }); // 前面化して再生
       return { ok: true, reused: true };
     } catch {
       await setPlayerTabId(null); // タブが閉じられていた
     }
   }
-  // ★ type:'popup' 窓は YouTube に「未サポート環境」と判定され "not available on this device"
-  //   の代替動画を返されるため、普通のバックグラウンドタブで開く（コンテキスト拒否を回避）。
-  const tab = await chrome.tabs.create({ url: watch, active: false });
+  const tab = await chrome.tabs.create({ url: watch, active: true }); // ★前面で開く
   await setPlayerTabId(tab.id ?? null);
   return { ok: true, reused: false };
+}
+
+// content から「再生が始まった」通知が来たら、元のタブへフォーカスを戻して再生タブを裏へ。
+async function onPlayerStarted() {
+  const got = await chrome.storage.local.get('prevActiveTabId');
+  const prev = got.prevActiveTabId;
+  if (prev == null) return;
+  try { await chrome.tabs.update(prev, { active: true }); } catch {}
 }
 
 // popup からの制御メッセージを再生タブへ転送する。
@@ -97,6 +112,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'isOpen') {
       await loadPlayerTabId();
       sendResponse({ ok: true, open: playerTabId != null });
+      return;
+    }
+    if (msg.type === 'playerStarted') { // content から（再生開始通知）
+      await onPlayerStarted();
+      sendResponse({ ok: true });
       return;
     }
     if (FORWARD_TYPES.includes(msg.type)) {

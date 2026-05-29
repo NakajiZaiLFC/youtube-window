@@ -14,6 +14,7 @@ let pollTimer = null;
 let observer = null;
 let rafQueued = false;
 let restarting = false;
+let startedNotified = false; // 再生開始を background に1回だけ通知したか
 
 function getVideo() { return document.querySelector('video'); }
 
@@ -54,8 +55,13 @@ function tick() {
       }
       lastAdShowing = adState.adShowing;
     }
-    // 3) 終端ループ
+    // 再生が実際に始まったら background に1回だけ通知（→ 元タブへ戻して裏へ回す）
     const video = getVideo();
+    if (!startedNotified && video && !video.paused && !video.ended && video.currentTime > 0) {
+      startedNotified = true;
+      try { chrome.runtime.sendMessage({ type: 'playerStarted' }); } catch {}
+    }
+    // 3) 終端ループ
     if (video && video.ended) {
       // 終端検出: 実DOMでの挙動はTask 12/13で要確認
       const nextBtn = document.querySelector(selectors.nextButton.css);
@@ -88,6 +94,8 @@ async function init() {
   restarting = false;
   lastAdShowing = false; // 曲遷移で広告状態をリセット
   weMuted = false;
+  // startedNotified は init でリセットしない:
+  // SPA の曲送り毎に再背面化してフォーカスを奪うのを防ぐ（フルリロード時のみ false に戻る）
   if (pollTimer) clearInterval(pollTimer);
   if (observer) observer.disconnect();        // 前回 observer を破棄（リーク防止）
   pollTimer = setInterval(tick, 500);
