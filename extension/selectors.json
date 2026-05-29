@@ -1,0 +1,14 @@
+{
+  "version": "2026-05-29.0-bundled",
+  "updatedAt": "2026-05-29T00:00:00+09:00",
+  "selectors": {
+    "adShowing":            { "css": ".ad-showing",            "assertType": "static",  "assert": "exists" },
+    "skipButton":           { "css": ".ytp-ad-skip-button",    "assertType": "static",  "assert": "clickable-button" },
+    "nextButton":           { "css": ".ytp-next-button",       "assertType": "dynamic", "assert": "advances-video" },
+    "prevButton":           { "css": ".ytp-prev-button",       "assertType": "static",  "assert": "exists" },
+    "stillWatchingDialog":  { "css": "yt-confirm-dialog-renderer", "assertType": "static",  "assert": "dialog" },
+    "stillWatchingConfirm": { "css": "yt-confirm-dialog-renderer #confirm-button", "assertType": "dynamic", "assert": "dismisses-dialog" },
+    "adblockDialog":        { "css": "tp-yt-paper-dialog",     "assertType": "static",  "assert": "dialog" },
+    "adblockDialogClose":   { "css": "tp-yt-paper-dialog #dismiss-button", "assertType": "dynamic", "assert": "dismisses-dialog" }
+  }
+}
