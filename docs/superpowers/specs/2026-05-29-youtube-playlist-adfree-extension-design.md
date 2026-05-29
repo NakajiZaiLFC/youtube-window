@@ -103,7 +103,7 @@ content/
 
 - **adSkipper.js**
   - 何をする: プレイヤー状態から広告かを判定し、スキップ動作を決める純粋関数＋DOM 適用。
-  - 判断（純粋関数）: `decideAdAction(state) -> 'click-skip' | 'mute-and-wait' | 'fast-forward' | 'none'`
+  - 判断（純粋関数）: `decideAdAction(state) -> 'click-skip' | 'mute-and-wait' | 'none'`（早送りは独立アクションにせず `mute-and-wait` 適用時の best-effort 副作用に統合。理由: PoC 前提のため判断分岐を増やさない）
   - フォールバック階層: スキップボタン有→クリック / 広告中だがボタン無→**ミュートして広告尺を待機（主動作）**／可能であれば `currentTime=duration` で早送り（**best-effort**）
   - ⚠️ **要 PoC 検証**: YouTube は広告再生中のシークを禁止していることが多く、`currentTime=duration` の早送りは効かない可能性が高い。Phase 1 序盤で実効性を PoC 検証し、効かなければ「ミュート待機」を確定の主動作とする。
   - 依存: `selectors`（ad-showing, skip-button）, video 要素
@@ -189,7 +189,8 @@ maintenance/
     "prevButton":  { "css": ".ytp-prev-button",    "assertType": "static",  "assert": "exists" },
     "stillWatchingDialog":  { "css": "<実調査で確定>", "assertType": "static",  "assert": "dialog" },
     "stillWatchingConfirm": { "css": "<実調査で確定>", "assertType": "dynamic", "assert": "dismisses-dialog" },
-    "adblockDialog":        { "css": "<実調査で確定>", "assertType": "static",  "assert": "dialog" }
+    "adblockDialog":        { "css": "<実調査で確定>", "assertType": "static",  "assert": "dialog" },
+    "adblockDialogClose":   { "css": "<実調査で確定>", "assertType": "dynamic", "assert": "dismisses-dialog" }
   }
 }
 ```
