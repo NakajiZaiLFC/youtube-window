@@ -16,7 +16,9 @@ const selectors = {
 };
 
 function docFrom(html) {
-  document.body.innerHTML = html.replace(/^[\s\S]*<body>|<\/body>[\s\S]*$/g, '');
+  // M-2: フィクスチャは body 内側の HTML 断片として直接代入する。
+  // <body>...</body> ラッパーへの依存をなくし、断片のみのフィクスチャでも動作する。
+  document.body.innerHTML = html;
   return document;
 }
 
