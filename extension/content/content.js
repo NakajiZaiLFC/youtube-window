@@ -98,11 +98,30 @@ async function init() {
 // YouTube は SPA。曲遷移ごとに再初期化
 document.addEventListener('yt-navigate-finish', () => { init(); });
 
+// 現在の再生状態を popup に返す（selectors 未初期化でも最低限は答える）
+function currentStatus() {
+  const v = getVideo();
+  let adShowing = false;
+  try { adShowing = !!(selectors && document.querySelector(selectors.adShowing.css)); } catch {}
+  return {
+    title: document.title.replace(/\s*-\s*YouTube\s*$/, '').trim(),
+    playing: !!(v && !v.paused && !v.ended && v.currentTime > 0),
+    hasVideo: !!v,
+    adShowing,
+    loop: settings ? settings.loop : null,
+    autoSkip: settings ? settings.autoSkip : null,
+  };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
+      if (msg.type === 'getStatus') { sendResponse({ ok: true, status: currentStatus() }); return; }
       if (!selectors || !settings) { sendResponse({ ok: false, error: 'not-ready' }); return; }
+      const v = getVideo();
       switch (msg.type) {
+        case 'play': if (v) await v.play().catch(() => {}); break;
+        case 'pause': if (v) v.pause(); break;
         case 'next': clickNext(document, selectors); break;
         case 'prev': clickPrev(document, selectors); break;
         case 'setLoop': settings.loop = msg.value; break;
@@ -115,7 +134,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }
           break;
       }
-      sendResponse({ ok: true });
+      sendResponse({ ok: true, status: currentStatus() });
     } catch (e) { sendResponse({ ok: false, error: String(e) }); }
   })();
   return true; // async response

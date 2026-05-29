@@ -1,6 +1,7 @@
 // extension/content/storage.js
 export const DEFAULT_SETTINGS = {
-  playlistUrl: '',
+  // 既定はユーザー固定のプレイリスト（popup から変更可）
+  playlistUrl: 'https://youtube.com/playlist?list=PLo5_HqN-8W46WkZczUFECWMIRvR2bc0Hf&si=XJ-ul5DduBJ86j3p',
   loop: true,
   autoSkip: true,
 };

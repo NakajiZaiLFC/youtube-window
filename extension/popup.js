@@ -4,39 +4,78 @@ import { exportSnapshots } from './content/adSnapshotLogger.js';
 
 const $ = (id) => document.getElementById(id);
 
-async function sendToActiveTab(msg) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return;
-  try {
-    return await chrome.tabs.sendMessage(tab.id, msg);
-  } catch (e) {
-    $('status').textContent = 'このタブには接続できません（YouTubeで開いてください）';
+// すべての制御は background（SW）経由で「裏の再生窓」へ送る
+function bg(msg) {
+  return chrome.runtime.sendMessage(msg).catch(() => ({ ok: false, error: 'no-bg' }));
+}
+
+let lastPlaying = false;
+
+function setChip(id, on) { $(id).classList.toggle('on', !!on); }
+
+function render(status, open) {
+  if (!open || !status) {
+    $('now').textContent = '—';
+    $('status').innerHTML = '<span class="dot" style="color:#5a4636">●</span> 停止中';
+    $('playpause').textContent = '▶';
+    return;
   }
+  $('now').textContent = status.title || '読み込み中…';
+  lastPlaying = status.playing;
+  $('playpause').textContent = status.playing ? '⏸' : '▶';
+  let label;
+  if (status.adShowing) label = '<span class="dot">●</span> 広告スキップ中…';
+  else if (status.playing) label = '<span class="dot">●</span> 再生中';
+  else label = '<span class="dot" style="color:#5a4636">●</span> 一時停止';
+  $('status').innerHTML = label;
+}
+
+async function poll() {
+  const r = await bg({ type: 'getStatus' });
+  render(r && r.ok ? r.status : null, !!(r && r.ok));
 }
 
 async function load() {
   const s = await getSettings();
   $('url').value = s.playlistUrl;
-  $('loop').checked = s.loop;
-  $('autoSkip').checked = s.autoSkip;
-  const cache = await chrome.storage.local.get('selectorsCache');
-  $('status').textContent = 'セレクタ: ' + (cache.selectorsCache?.version || '同梱デフォルト');
+  setChip('loop', s.loop);
+  setChip('autoSkip', s.autoSkip);
+  await poll();
+  setInterval(poll, 1000); // popup が閉じれば自動停止
 }
 
-$('save').onclick = async () => { await setSetting('playlistUrl', $('url').value.trim()); $('status').textContent = '保存しました'; };
 $('start').onclick = async () => {
   const s = await getSettings();
-  if (!s.playlistUrl) { $('status').textContent = 'URLを保存してください'; return; }
-  try {
-    await chrome.runtime.sendMessage({ type: 'openPlaylist', url: s.playlistUrl });
-  } catch (e) {
-    $('status').textContent = 'プレイリストの起動に失敗しました';
-  }
+  $('status').innerHTML = '<span class="dot">●</span> 起動中…';
+  await bg({ type: 'openPlaylist', url: s.playlistUrl });
+  setTimeout(poll, 1500);
 };
-$('next').onclick = () => sendToActiveTab({ type: 'next' });
-$('prev').onclick = () => sendToActiveTab({ type: 'prev' });
-$('loop').onchange = async (e) => { await setSetting('loop', e.target.checked); sendToActiveTab({ type: 'setLoop', value: e.target.checked }); };
-$('autoSkip').onchange = async (e) => { await setSetting('autoSkip', e.target.checked); sendToActiveTab({ type: 'setAutoSkip', value: e.target.checked }); };
+
+$('playpause').onclick = async () => {
+  await bg({ type: lastPlaying ? 'pause' : 'play' });
+  setTimeout(poll, 200);
+};
+$('next').onclick = async () => { await bg({ type: 'next' }); setTimeout(poll, 600); };
+$('prev').onclick = async () => { await bg({ type: 'prev' }); setTimeout(poll, 600); };
+
+$('loop').onclick = async () => {
+  const on = !$('loop').classList.contains('on');
+  setChip('loop', on);
+  await setSetting('loop', on);
+  bg({ type: 'setLoop', value: on });
+};
+$('autoSkip').onclick = async () => {
+  const on = !$('autoSkip').classList.contains('on');
+  setChip('autoSkip', on);
+  await setSetting('autoSkip', on);
+  bg({ type: 'setAutoSkip', value: on });
+};
+
+$('save').onclick = async () => {
+  await setSetting('playlistUrl', $('url').value.trim());
+  $('status').innerHTML = '<span class="dot">●</span> URL保存しました';
+};
+
 $('export').onclick = async () => {
   const data = await exportSnapshots();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

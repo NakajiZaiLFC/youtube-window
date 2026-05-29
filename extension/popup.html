@@ -1,21 +1,71 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="ja"><head><meta charset="utf-8">
 <style>
-  body { width: 240px; font-family: system-ui; padding: 12px; }
-  input, button { width: 100%; margin: 4px 0; box-sizing: border-box; }
-  .row { display: flex; gap: 4px; }
-  .row button { width: 50%; }
-  label { font-size: 13px; display: flex; align-items: center; gap: 6px; }
-  #status { font-size: 12px; color: #666; margin-top: 8px; }
+  :root {
+    --bg: #1b1410; --bg2: #241a14; --amber: #f4a259; --amber-dim: #c97b3c;
+    --text: #f3e9df; --muted: #9b8b7c; --line: #3a2c22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 300px; margin: 0; padding: 16px 16px 14px;
+    background: radial-gradient(120% 80% at 50% -10%, #3a2618 0%, var(--bg) 60%);
+    color: var(--text); font-family: system-ui, sans-serif;
+  }
+  .wm { font-size: 11px; letter-spacing: .22em; color: var(--amber-dim); text-transform: uppercase; }
+  .now { margin: 6px 0 2px; font-size: 15px; font-weight: 600; line-height: 1.3;
+         max-height: 2.6em; overflow: hidden; }
+  .status { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
+  .dot { color: var(--amber); }
+  .transport { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 14px 0 12px; }
+  .tbtn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 20px; padding: 4px; opacity: .9; }
+  .tbtn:hover { opacity: 1; }
+  .play { width: 52px; height: 52px; border-radius: 50%; background: var(--amber); color: #2a1a0d;
+          font-size: 22px; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(244,162,89,.35); }
+  .play:hover { background: #ffb36a; }
+  .start { width: 100%; padding: 9px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--amber-dim);
+           background: linear-gradient(180deg, var(--amber), var(--amber-dim)); color: #2a1a0d; font-weight: 700; cursor: pointer; }
+  .toggles { display: flex; gap: 8px; margin-bottom: 10px; }
+  .chip { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+          padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2);
+          font-size: 12px; cursor: pointer; user-select: none; }
+  .chip.on { border-color: var(--amber-dim); color: var(--amber); }
+  .sw { width: 9px; height: 9px; border-radius: 50%; background: #5a4636; }
+  .chip.on .sw { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  details { margin-top: 4px; }
+  summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+  input[type=text] { width: 100%; margin-top: 6px; padding: 6px 8px; border-radius: 6px;
+                     border: 1px solid var(--line); background: #140f0b; color: var(--text); font-size: 11px; }
+  .row { display: flex; gap: 6px; margin-top: 6px; }
+  .mini { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2);
+          color: var(--muted); font-size: 11px; cursor: pointer; }
+  .mini:hover { color: var(--text); }
 </style></head>
 <body>
-  <input id="url" placeholder="プレイリストURL" />
-  <button id="save">URLを保存</button>
-  <button id="start">▶ 開始</button>
-  <div class="row"><button id="prev">⏮ 前へ</button><button id="next">⏭ 次へ</button></div>
-  <label><input type="checkbox" id="loop"> 🔁 ループ</label>
-  <label><input type="checkbox" id="autoSkip"> 自動スキップ</label>
-  <button id="export">広告DOMをエクスポート</button>
-  <div id="status"></div>
+  <div class="wm">◍ adfree player</div>
+  <div class="now" id="now">—</div>
+  <div class="status" id="status"><span class="dot">●</span> 停止中</div>
+
+  <div class="transport">
+    <button class="tbtn" id="prev" title="前へ">⏮</button>
+    <button class="tbtn play" id="playpause" title="再生/一時停止">▶</button>
+    <button class="tbtn" id="next" title="次へ">⏭</button>
+  </div>
+
+  <button class="start" id="start">▶ プレイリストを開始</button>
+
+  <div class="toggles">
+    <div class="chip" id="loop"><span>🔁 ループ</span><span class="sw"></span></div>
+    <div class="chip" id="autoSkip"><span>🔇 広告スキップ</span><span class="sw"></span></div>
+  </div>
+
+  <details>
+    <summary>設定 / プレイリストURL</summary>
+    <input type="text" id="url" placeholder="https://youtube.com/playlist?list=..." />
+    <div class="row">
+      <button class="mini" id="save">URL保存</button>
+      <button class="mini" id="export">広告DOM書出</button>
+    </div>
+  </details>
+
   <script type="module" src="popup.js"></script>
 </body></html>
