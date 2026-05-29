@@ -13,21 +13,26 @@ let lastPlaying = false;
 
 function setChip(id, on) { $(id).classList.toggle('on', !!on); }
 
+// #status はテキストのみ更新（ドットは CSS の ::before）。停止/一時停止は .idle で淡色化。
+function setStatus(text, idle) {
+  const st = $('status');
+  st.textContent = text;
+  st.classList.toggle('idle', !!idle);
+}
+
 function render(status, open) {
   if (!open || !status) {
     $('now').textContent = '—';
-    $('status').innerHTML = '<span class="dot" style="color:#5a4636">●</span> 停止中';
+    setStatus('停止中', true);
     $('playpause').textContent = '▶';
     return;
   }
   $('now').textContent = status.title || '読み込み中…';
   lastPlaying = status.playing;
   $('playpause').textContent = status.playing ? '⏸' : '▶';
-  let label;
-  if (status.adShowing) label = '<span class="dot">●</span> 広告スキップ中…';
-  else if (status.playing) label = '<span class="dot">●</span> 再生中';
-  else label = '<span class="dot" style="color:#5a4636">●</span> 一時停止';
-  $('status').innerHTML = label;
+  if (status.adShowing) setStatus('広告スキップ中…', false);
+  else if (status.playing) setStatus('再生中', false);
+  else setStatus('一時停止', true);
 }
 
 async function poll() {
@@ -46,7 +51,7 @@ async function load() {
 
 $('start').onclick = async () => {
   const s = await getSettings();
-  $('status').innerHTML = '<span class="dot">●</span> 起動中…';
+  setStatus('起動中…', false);
   await bg({ type: 'openPlaylist', url: s.playlistUrl });
   setTimeout(poll, 1500);
 };
@@ -58,22 +63,23 @@ $('playpause').onclick = async () => {
 $('next').onclick = async () => { await bg({ type: 'next' }); setTimeout(poll, 600); };
 $('prev').onclick = async () => { await bg({ type: 'prev' }); setTimeout(poll, 600); };
 
-$('loop').onclick = async () => {
-  const on = !$('loop').classList.contains('on');
-  setChip('loop', on);
-  await setSetting('loop', on);
-  bg({ type: 'setLoop', value: on });
-};
-$('autoSkip').onclick = async () => {
-  const on = !$('autoSkip').classList.contains('on');
-  setChip('autoSkip', on);
-  await setSetting('autoSkip', on);
-  bg({ type: 'setAutoSkip', value: on });
-};
+function wireToggle(id, settingKey, msgType) {
+  const el = $(id);
+  const handler = async () => {
+    const on = !el.classList.contains('on');
+    setChip(id, on);
+    await setSetting(settingKey, on);
+    bg({ type: msgType, value: on });
+  };
+  el.onclick = handler;
+  el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } };
+}
+wireToggle('loop', 'loop', 'setLoop');
+wireToggle('autoSkip', 'autoSkip', 'setAutoSkip');
 
 $('save').onclick = async () => {
   await setSetting('playlistUrl', $('url').value.trim());
-  $('status').innerHTML = '<span class="dot">●</span> URL保存しました';
+  setStatus('URL保存しました', false);
 };
 
 $('export').onclick = async () => {
