@@ -56,7 +56,9 @@ function tick() {
     // 3) 終端ループ
     const video = getVideo();
     if (video && video.ended) {
-      const atEnd = !document.querySelector(selectors.nextButton.css);
+      // 終端検出: 実DOMでの挙動はTask 12/13で要確認
+      const nextBtn = document.querySelector(selectors.nextButton.css);
+      const atEnd = !nextBtn || nextBtn.disabled || nextBtn.getAttribute('aria-disabled') === 'true';
       if (decideEndAction({ atPlaylistEnd: atEnd, loopEnabled: settings.loop }) === 'restart-playlist') {
         restarting = true;
         if (pollTimer) clearInterval(pollTimer); // 多重 restart 防止
@@ -97,6 +99,7 @@ document.addEventListener('yt-navigate-finish', () => { init(); });
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
+      if (!selectors || !settings) { sendResponse({ ok: false, error: 'not-ready' }); return; }
       switch (msg.type) {
         case 'next': clickNext(document, selectors); break;
         case 'prev': clickPrev(document, selectors); break;
@@ -109,7 +112,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             lastAdShowing = false;
           }
           break;
-        case 'reloadSettings': settings = await getSettings(); break;
       }
       sendResponse({ ok: true });
     } catch (e) { sendResponse({ ok: false, error: String(e) }); }
