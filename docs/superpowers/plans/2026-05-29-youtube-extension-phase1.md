@@ -1141,7 +1141,7 @@ load();
   "name": "YT Playlist Adfree Player",
   "version": "0.1.0",
   "description": "YouTube ネイティブプレイリストを広告/ダイアログ回避しつつ連続再生する自分用拡張",
-  "permissions": ["storage", "tabs", "alarms", "scripting", "downloads"],
+  "permissions": ["storage", "tabs", "alarms", "downloads"],
   "host_permissions": ["*://*.youtube.com/*", "https://raw.githubusercontent.com/*"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": { "default_popup": "popup.html" },

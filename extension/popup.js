@@ -6,7 +6,12 @@ const $ = (id) => document.getElementById(id);
 
 async function sendToActiveTab(msg) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab) return chrome.tabs.sendMessage(tab.id, msg);
+  if (!tab?.id) return;
+  try {
+    return await chrome.tabs.sendMessage(tab.id, msg);
+  } catch (e) {
+    $('status').textContent = 'このタブには接続できません（YouTubeで開いてください）';
+  }
 }
 
 async function load() {
@@ -22,7 +27,11 @@ $('save').onclick = async () => { await setSetting('playlistUrl', $('url').value
 $('start').onclick = async () => {
   const s = await getSettings();
   if (!s.playlistUrl) { $('status').textContent = 'URLを保存してください'; return; }
-  chrome.runtime.sendMessage({ type: 'openPlaylist', url: s.playlistUrl });
+  try {
+    await chrome.runtime.sendMessage({ type: 'openPlaylist', url: s.playlistUrl });
+  } catch (e) {
+    $('status').textContent = 'プレイリストの起動に失敗しました';
+  }
 };
 $('next').onclick = () => sendToActiveTab({ type: 'next' });
 $('prev').onclick = () => sendToActiveTab({ type: 'prev' });
@@ -32,8 +41,14 @@ $('export').onclick = async () => {
   const data = await exportSnapshots();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  await chrome.downloads.download({ url, filename: 'youtube-ad-snapshots.json', saveAs: false });
-  $('status').textContent = `${data.length} 件エクスポート`;
+  try {
+    await chrome.downloads.download({ url, filename: 'youtube-ad-snapshots.json', saveAs: false });
+    $('status').textContent = `${data.length} 件エクスポート`;
+  } catch (e) {
+    $('status').textContent = 'エクスポートに失敗しました';
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 };
 
-load();
+load().catch(() => { $('status').textContent = '初期化に失敗しました'; });

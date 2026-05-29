@@ -78,7 +78,7 @@ A を採用する理由: 自己完結で広告回避でき、YouTube の広告�
 ### 4.1 コンポーネント構成
 ```
 manifest.json            MV3。host_permissions: *://*.youtube.com/*, https://raw.githubusercontent.com/*
-                         permissions: storage, tabs, alarms, scripting, downloads
+                         permissions: storage, tabs, alarms, downloads
 selectors.json           同梱デフォルト（契約ファイルのフォールバック）
 popup.html / popup.js    操作パネル UI
 background.js            サービスワーカー（タブ起動・メッセージ中継・alarms・設定永続化）
