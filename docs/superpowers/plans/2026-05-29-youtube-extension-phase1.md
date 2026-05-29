@@ -846,7 +846,7 @@ function readAdState() {
 
 function tick() {
   try {
-    if (!selectors || restarting) return;
+    if (!selectors || !settings || restarting) return;
     // 1) ダイアログ回避
     dismissIfPresent(document, selectors);
     // 2) 広告処理
@@ -877,6 +877,7 @@ function tick() {
       if (decideEndAction({ atPlaylistEnd: atEnd, loopEnabled: settings.loop }) === 'restart-playlist') {
         restarting = true;
         if (pollTimer) clearInterval(pollTimer); // 多重 restart 防止
+        if (observer) observer.disconnect();
         restartPlaylist(location);
       }
     }
@@ -892,8 +893,11 @@ function scheduleTick() {
 }
 
 async function init() {
-  selectors = await getSelectors();
-  settings = await getSettings();
+  const sel = await getSelectors();
+  const set = await getSettings();
+  // ここから同期セクション（await を挟まない）
+  selectors = sel;
+  settings = set;
   restarting = false;
   lastAdShowing = false; // 曲遷移で広告状態をリセット
   weMuted = false;
