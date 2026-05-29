@@ -783,7 +783,7 @@ Expected: PASS（4 件）
 - [ ] **Step 5: 全純粋ロジックのテストをまとめて緑にする**
 
 Run: `npx vitest run`
-Expected: PASS（全 23 件: validators 2 + storage 3 + selectorLoader 5 + adSkipper 4 + promptDismisser 3 + playlist 3 + adSnapshotLogger 4 - ※getSelectors の追加分込み）
+Expected: PASS（全 24 件: validators 2 + storage 3 + selectorLoader 5 + adSkipper 4 + promptDismisser 3 + playlist 3 + adSnapshotLogger 4）
 
 - [ ] **Step 6: Commit**
 
@@ -895,6 +895,8 @@ async function init() {
   selectors = await getSelectors();
   settings = await getSettings();
   restarting = false;
+  lastAdShowing = false; // 曲遷移で広告状態をリセット
+  weMuted = false;
   if (pollTimer) clearInterval(pollTimer);
   if (observer) observer.disconnect();        // 前回 observer を破棄（リーク防止）
   pollTimer = setInterval(tick, 500);
