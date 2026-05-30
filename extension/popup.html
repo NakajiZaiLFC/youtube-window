@@ -81,9 +81,10 @@
   /* シーク列(3)の真下に揃える: 左端=現在 / 右端=この動画の総時間 */
   .times { grid-column:3; grid-row:2; display:flex; justify-content:space-between;
            margin-top:-14px; font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
-  /* 各時間の中央(≒コロン)を、シークの左端/右端の真下に合わせる */
-  #elapsed { transform:translateX(-50%); }
-  #duration { transform:translateX(50%); }
+  /* 各時間の中央(≒コロン)を、シークの左端/右端の真下に合わせる。
+     つまみ半径(約7px)ぶん内側へ均等にインセットして左右対称にする。 */
+  #elapsed { transform:translateX(-50%); margin-left:7px; }
+  #duration { transform:translateX(50%); margin-right:7px; }
   #status { display:flex; align-items:center; gap:6px; margin-top:6px; padding:0 6px;
             font-size:12px; font-weight:500; color:var(--text-2); }
   #status::before { content:""; width:7px; height:7px; border-radius:50%;
