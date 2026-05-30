@@ -120,12 +120,26 @@ async function init() {
 document.addEventListener('yt-navigate-finish', () => { init(); });
 
 // 現在の再生状態を popup に返す（selectors 未初期化でも最低限は答える）
+function currentVideoId() {
+  try { return new URLSearchParams(location.search).get('v') || ''; } catch { return ''; }
+}
+
+function currentChannel() {
+  const el = document.querySelector(
+    '#owner #channel-name a, ytd-video-owner-renderer #channel-name a, ' +
+    '#upload-info #channel-name a, ytd-channel-name a'
+  );
+  return el ? el.textContent.trim() : '';
+}
+
 function currentStatus() {
   const v = getVideo();
   let adShowing = false;
   try { adShowing = !!(selectors && document.querySelector(selectors.adShowing.css)); } catch {}
   return {
     title: document.title.replace(/\s*-\s*YouTube\s*$/, '').trim(),
+    channel: currentChannel(),
+    videoId: currentVideoId(),
     playing: !!(v && !v.paused && !v.ended && v.currentTime > 0),
     hasVideo: !!v,
     adShowing,

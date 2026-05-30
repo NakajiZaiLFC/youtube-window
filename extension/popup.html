@@ -6,101 +6,118 @@
 <title>Hi-Fi Player</title>
 <style>
   :root {
-    --bg:#f5f5f7; --card:#fff; --text:#1d1d1f; --text-2:#86868b; --text-3:#a1a1a6;
-    --sep:rgba(0,0,0,.08); --fill:#ececef; --fill-2:#e3e3e6;
-    --accent:#f4a259; --accent-d:#d98a3d; --accent-ink:#4a2e16; --radius:14px;
+    --bg:#f4eff2; --card:#fbf8fa; --text:#1d1d1f; --text-2:#6b6b70; --text-3:#a6a0a6;
+    --fill:#e9e3e8; --fill-2:#ded7dd;
+    --accent:#f4a259; --accent-d:#d98a3d; --accent-ink:#4a2e16; --radius:16px;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body {
-    width:300px; background:var(--bg); color:var(--text);
+    width:460px; background:var(--bg); color:var(--text);
     font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-    -webkit-font-smoothing:antialiased; letter-spacing:-0.01em;
+    -webkit-font-smoothing:antialiased; letter-spacing:-0.01em; overflow:hidden;
   }
-  body { padding:16px 14px 12px; }
+  body { padding:14px 16px 12px; }
+  /* PiP モード: 余白を詰めてウィンドウ全体を使う */
+  body.pip { width:100%; padding:10px 12px; }
 
-  /* header */
-  .brand { display:flex; align-items:center; justify-content:space-between; padding:0 4px 14px; }
-  .brand-l { display:flex; align-items:baseline; gap:7px; }
-  .brand-name { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
-  #ver { font-size:10px; font-weight:500; color:var(--text-3); font-variant-numeric:tabular-nums; }
-  /* loop = icon-only ghost toggle */
-  .hbtns { display:flex; align-items:center; gap:2px; }
-  #loop, #popout { font-size:16px; line-height:1; background:none; border:none; cursor:pointer;
-          color:var(--text-3); width:30px; height:30px; border-radius:50%; transition:.15s; }
-  #loop:hover, #popout:hover { background:var(--fill); }
-  #loop.on { color:var(--accent); background:rgba(244,162,89,.14); }
+  .wrap { position:relative; }
 
-  /* now playing */
-  .now-card { background:var(--card); border-radius:var(--radius); padding:16px 16px 14px;
-              box-shadow:0 1px 2px rgba(0,0,0,.04); }
-  .now-label { font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
-               color:var(--text-3); margin-bottom:7px; }
+  /* 右上アイコン群（最前面固定 / ループ） */
+  .corner { position:absolute; top:-2px; right:-2px; display:flex; gap:2px; z-index:2; }
+  .icon { font-size:15px; line-height:1; background:none; border:none; cursor:pointer;
+          color:var(--text-3); width:28px; height:28px; border-radius:50%; transition:.15s;
+          display:grid; place-items:center; }
+  .icon:hover { background:var(--fill); color:var(--text-2); }
+  #loop.on { color:var(--accent); background:rgba(244,162,89,.16); }
+  #float.on { color:var(--accent); background:rgba(244,162,89,.16); }
+
+  /* 上段カード: サムネ | メタ | 再生ボタン */
+  .card { display:grid; grid-template-columns:74px 1fr auto; align-items:center;
+          gap:14px; background:var(--card); border-radius:var(--radius);
+          padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .thumb { width:74px; height:74px; border-radius:12px; object-fit:cover;
+           background:var(--fill-2); display:block; }
+  .thumb.empty { display:grid; place-items:center; font-size:26px; color:var(--text-3); }
+
+  .meta { min-width:0; padding-right:6px; }
+  .src { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600;
+         color:var(--text-3); margin-bottom:3px; }
+  .src .yt { color:#ff0033; font-size:11px; }
   .marquee { overflow:hidden; white-space:nowrap; }
-  #now { display:inline-block; white-space:nowrap; font-size:19px; font-weight:600;
-         letter-spacing:-0.02em; line-height:1.25; will-change:transform; }
+  #now { display:inline-block; white-space:nowrap; font-size:17px; font-weight:700;
+         letter-spacing:-0.02em; line-height:1.3; will-change:transform; }
   #now.scroll { animation:walk var(--dur,8s) ease-in-out infinite alternate; }
   @keyframes walk { 0%,18%{transform:translateX(0)} 82%,100%{transform:translateX(var(--shift,0))} }
-  #status { display:inline-flex; align-items:center; gap:6px; margin-top:9px;
-            font-size:13px; font-weight:500; color:var(--text-2); }
-  #status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); }
-  #status.idle::before { background:var(--text-3); }
+  #channel { font-size:12px; font-weight:500; color:var(--text-2); margin-top:2px;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* seek */
-  .seek { margin-top:13px; }
+  /* 大きい丸い再生ボタン */
+  #playpause { width:54px; height:54px; border-radius:50%; border:none; cursor:pointer;
+               background:var(--accent); color:var(--accent-ink); font-size:21px;
+               display:grid; place-items:center; box-shadow:0 2px 8px rgba(244,162,89,.4);
+               transition:transform .1s, filter .15s; }
+  #playpause:hover { filter:brightness(1.05); }
+  #playpause:active { transform:scale(.93); }
+
+  /* 下段トランスポート */
+  .bar { display:flex; align-items:center; gap:10px; padding:13px 4px 2px; }
+  .bbtn { position:relative; border:none; background:none; cursor:pointer; color:var(--text);
+          width:34px; height:34px; display:grid; place-items:center; font-size:17px;
+          border-radius:8px; transition:opacity .15s, transform .1s, background .15s; }
+  .bbtn:hover { background:var(--fill); }
+  .bbtn:active { transform:scale(.9); }
+  .bbtn .n { position:absolute; bottom:5px; right:3px; font-size:8px; font-weight:700;
+             color:var(--text-2); }
+
+  .seekwrap { flex:1; min-width:0; }
   #seek { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
           background:var(--fill-2); cursor:pointer; }
-  #seek::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
-          background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.25); margin-top:0; }
-  .times { display:flex; justify-content:space-between; margin-top:5px;
-           font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  #seek::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+          background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.3); }
 
-  /* transport */
-  .transport { display:flex; align-items:center; justify-content:center; gap:26px; padding:18px 0 4px; }
-  .tbtn { font-family:inherit; border:none; background:none; cursor:pointer; color:var(--text);
-          display:grid; place-items:center; user-select:none; transition:opacity .15s, transform .1s; }
-  .tbtn.side { width:40px; height:40px; font-size:19px; }
-  .tbtn.side:hover { opacity:.55; }
-  .tbtn.main { width:60px; height:60px; border-radius:50%; background:var(--accent); color:var(--accent-ink);
-               font-size:23px; box-shadow:0 2px 8px rgba(244,162,89,.35); transition:transform .1s, filter .15s; }
-  .tbtn.main:hover { filter:brightness(1.04); }
-  .tbtn:active { transform:scale(.92); }
+  /* 状態 + 時間 */
+  #status { display:flex; align-items:center; gap:6px; margin-top:9px; padding:0 4px;
+            font-size:12px; font-weight:500; color:var(--text-2);
+            font-variant-numeric:tabular-nums; }
+  #status::before { content:""; width:7px; height:7px; border-radius:50%;
+                    background:var(--accent); flex:none; }
+  #status.idle::before { background:var(--text-3); }
+  #times { margin-left:auto; color:var(--text-3); }
 
-  /* footer */
-  #export { display:block; width:100%; margin-top:10px; font-family:inherit; font-size:11px;
-            font-weight:500; color:var(--text-3); background:none; border:none; padding:4px; cursor:pointer; }
-  #export:hover { color:var(--accent-d); }
+  #ver { display:none; }
 </style>
 </head>
 <body>
-  <div class="brand">
-    <div class="brand-l">
-      <span class="brand-name">Hi-Fi Player</span>
-      <span id="ver"></span>
+  <div id="wrap" class="wrap">
+    <div class="corner">
+      <button id="loop" class="icon" title="リピート" aria-label="リピート">🔁</button>
+      <button id="float" class="icon" title="小窓で開く" aria-label="小窓で開く">⧉</button>
     </div>
-    <div class="hbtns">
-      <button id="popout" title="小窓で開く" aria-label="小窓で開く">⧉</button>
-      <button id="loop" title="リピート" aria-label="リピート">🔁</button>
+
+    <div class="card">
+      <img id="thumb" class="thumb" alt="" referrerpolicy="no-referrer">
+      <div class="meta">
+        <div class="src"><span class="yt">▶</span><span>youtube.com</span></div>
+        <div class="marquee"><span id="now">—</span></div>
+        <div id="channel"></div>
+      </div>
+      <button id="playpause" title="再生 / 一時停止" aria-label="再生 / 一時停止">▶</button>
     </div>
+
+    <div class="bar">
+      <button id="prev" class="bbtn" title="前の曲" aria-label="前の曲">⏮</button>
+      <button id="back10" class="bbtn" title="10秒戻す" aria-label="10秒戻す">↺<span class="n">10</span></button>
+      <div class="seekwrap">
+        <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+      </div>
+      <button id="fwd10" class="bbtn" title="10秒進む" aria-label="10秒進む">↻<span class="n">10</span></button>
+      <button id="next" class="bbtn" title="次の曲" aria-label="次の曲">⏭</button>
+    </div>
+
+    <div id="status" class="idle">停止中<span id="times"></span></div>
+    <button id="export" hidden></button>
+    <span id="ver"></span>
   </div>
-
-  <section class="now-card">
-    <div class="now-label">再生中の曲</div>
-    <div class="marquee"><span id="now">—</span></div>
-    <div id="status" class="idle">停止中</div>
-
-    <div class="seek">
-      <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
-      <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
-    </div>
-
-    <div class="transport">
-      <button id="prev" class="tbtn side" title="前へ" aria-label="前へ">⏮</button>
-      <button id="playpause" class="tbtn main" title="再生 / 一時停止" aria-label="再生 / 一時停止">▶</button>
-      <button id="next" class="tbtn side" title="次へ" aria-label="次へ">⏭</button>
-    </div>
-  </section>
-
-  <button id="export">広告DOMを書き出す</button>
 
   <script type="module" src="popup.js"></script>
 </body>
