@@ -218,7 +218,14 @@ async function enterPiP() {
   win.document.body.append(wrap);
   root = win.document;
 
-  // 位置はブラウザ既定（ドラッグした位置を Chrome が記憶する）。最前面固定だけが目的。
+  // 初期位置を画面右上へ寄せる（ブラウザが moveTo を許可する場合のみ。
+  // 一度ドラッグすれば次回以降は Chrome がその位置を記憶する）
+  try {
+    const M = 12, W = 460;
+    const left = Math.max(0, Math.round((screen.availLeft || 0) + screen.availWidth - W - M));
+    const top = Math.round((screen.availTop || 0) + M);
+    win.moveTo(left, top);
+  } catch {}
 
   // PiP のサイズ変更をロック: リサイズされたら既定サイズへ戻す（resizeTo 許可時のみ有効）
   let pipResizing = false;
