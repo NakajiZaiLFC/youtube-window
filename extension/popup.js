@@ -202,7 +202,7 @@ async function enterPiP() {
   pipPending = true;
   let win;
   try {
-    win = await documentPictureInPicture.requestWindow({ width: 460, height: 200 });
+    win = await documentPictureInPicture.requestWindow({ width: 460, height: 220 });
   } catch { pipPending = false; return false; }
   pipWin = win;
   pipPending = false;
@@ -255,7 +255,7 @@ async function autoPopout() {
   } catch {}
   try {
     await chrome.windows.create({
-      url: panelUrl, type: 'popup', width: 480, height: 210, focused: true,
+      url: panelUrl, type: 'popup', width: 480, height: 230, focused: true,
     });
   } catch {}
   window.close();
@@ -282,7 +282,12 @@ async function load() {
   if (!isPanel) { await autoPopout(); return; }
   document.title = 'Hi-Fi Player';
   await lockLoopOn();              // ループ常時ON
-  if (supportsPiP) autoPinArmed = true; // 初回操作で最前面固定
+  if (supportsPiP) {
+    autoPinArmed = true;          // 初回操作で最前面固定
+    // 小窓のどこをクリックしても最前面化する。bubble フェーズで拾うので、
+    // ボタン押下時はボタン側の処理が先に走り、ここでの maybePin は冪等で no-op になる。
+    document.addEventListener('click', () => { maybePin(); });
+  }
   await poll();
   setInterval(poll, 1000);
 }
