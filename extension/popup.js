@@ -221,13 +221,8 @@ async function enterPiP() {
   // 注: Document PiP は位置を右下に固定し、moveTo も受け付けない（ブラウザ仕様）。
   //     位置をコードから変更する手段が無いため、初期位置の指定は行わない。
 
-  // PiP のサイズ変更をロック: サイズが既定とズレるたびに必ず戻す（resizeTo 許可時のみ有効）。
-  // 既定サイズに一致したら resizeTo を呼ばないので無限ループにならない。
-  win.addEventListener('resize', () => {
-    if (Math.abs(win.outerWidth - 460) > 2 || Math.abs(win.outerHeight - 200) > 2) {
-      try { win.resizeTo(460, 200); } catch {}
-    }
-  });
+  // 注: Document PiP はユーザーのサイズ変更を許可し、resizeTo でも固定できない（ブラウザ仕様）。
+  //     代わりに body.pip 側で中身を固定幅・中央寄せにして、リサイズしても崩れないようにする。
 
   // 発射台の小窓（最前面にならない方）はもう不要 → 最小化して隠す
   try {

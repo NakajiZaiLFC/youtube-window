@@ -17,8 +17,9 @@
     -webkit-font-smoothing:antialiased; letter-spacing:-0.01em; overflow:hidden;
   }
   body { padding:14px 16px 12px; }
-  /* PiP モード: 余白を詰めてウィンドウ全体を使う */
-  body.pip { width:100%; padding:10px 12px; }
+  /* PiP モード: リサイズされても中身は固定幅で中央寄せ（拡大時は余白、縮小時はクリップ） */
+  body.pip { width:100%; padding:10px 12px; display:flex; justify-content:center; align-items:flex-start; }
+  body.pip .wrap { width:436px; flex:none; }
 
   .wrap { position:relative; }
 
