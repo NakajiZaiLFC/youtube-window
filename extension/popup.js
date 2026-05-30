@@ -218,19 +218,8 @@ async function enterPiP() {
   win.document.body.append(wrap);
   root = win.document;
 
-  // 初期位置を画面右上へ寄せる。ただし Document PiP は moveTo を無視する実装が多く、
-  // その場合はブラウザ既定(右下)に出る → 一度ドラッグすれば Chrome が位置を記憶する。
-  const placeTopRight = () => {
-    try {
-      const M = 12, W = 460;
-      const left = Math.max(0, Math.round((screen.availLeft || 0) + screen.availWidth - W - M));
-      const top = Math.round((screen.availTop || 0) + M);
-      win.moveTo(left, top);
-    } catch {}
-  };
-  placeTopRight();
-  try { win.requestAnimationFrame(placeTopRight); } catch {}
-  try { win.addEventListener('pageshow', placeTopRight); } catch {}
+  // 注: Document PiP は位置を右下に固定し、moveTo も受け付けない（ブラウザ仕様）。
+  //     位置をコードから変更する手段が無いため、初期位置の指定は行わない。
 
   // PiP のサイズ変更をロック: リサイズされたら既定サイズへ戻す（resizeTo 許可時のみ有効）
   let pipResizing = false;

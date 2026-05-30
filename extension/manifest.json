@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YT Playlist Adfree Player",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "YouTube ネイティブプレイリストを広告/ダイアログ回避しつつ連続再生する自分用拡張",
   "permissions": [
     "storage",
