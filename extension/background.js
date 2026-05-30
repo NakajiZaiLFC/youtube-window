@@ -116,12 +116,60 @@ async function forwardToPlayer(msg) {
 // 再生タブ（と隔離した専用ウィンドウ）を閉じる。
 async function closePlayer() {
   await loadPlayerTabId();
+  await detachDebugger();
   if (playerTabId != null) {
     try { await chrome.tabs.remove(playerTabId); } catch {} // 専用ウィンドウの唯一のタブなら窓ごと閉じる
   }
   await setPlayerTabId(null);
   try { await chrome.storage.local.remove('playerWindowId'); } catch {}
 }
+
+// ── 本物クリック（chrome.debugger / CDP Input） ──────────────
+// YouTube は合成クリックを無視するため、スキップボタンを「本物の入力」で押す。
+// 再生用 YouTube は隠した最小化ウィンドウなので、デバッグ警告バーは目に入らない。
+let debuggerTabId = null;
+
+async function ensureDebugger(tabId) {
+  if (debuggerTabId === tabId) return true;
+  await detachDebugger();
+  try {
+    await chrome.debugger.attach({ tabId }, '1.3');
+    debuggerTabId = tabId;
+    return true;
+  } catch (e) {
+    // 既に attach 済みなら成功扱い
+    if (/already attached|Another debugger/i.test(String(e?.message || e))) { debuggerTabId = tabId; return true; }
+    return false;
+  }
+}
+
+async function detachDebugger() {
+  if (debuggerTabId == null) return;
+  const id = debuggerTabId;
+  debuggerTabId = null;
+  try { await chrome.debugger.detach({ tabId: id }); } catch {}
+}
+
+// 指定座標(CSSピクセル, ビューポート基準)へ本物のクリックを送る。
+async function debuggerClickAt(tabId, x, y) {
+  if (!(await ensureDebugger(tabId))) return false;
+  const base = { x, y, button: 'left', buttons: 1, clickCount: 1 };
+  try {
+    await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchMouseEvent', { type: 'mousePressed', ...base });
+    await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchMouseEvent', { type: 'mouseReleased', ...base });
+    return true;
+  } catch (e) {
+    // attach が外れていた等 → 一度リセットして次回再試行
+    await detachDebugger();
+    return false;
+  }
+}
+
+// ユーザーが警告バーから「キャンセル」した等で外れたら状態をリセット
+chrome.debugger.onDetach.addListener((source) => {
+  if (source.tabId === debuggerTabId) debuggerTabId = null;
+});
 
 const FORWARD_TYPES = ['play', 'pause', 'seek', 'next', 'prev', 'setLoop', 'getStatus'];
 
@@ -149,6 +197,7 @@ chrome.alarms.onAlarm.addListener((a) => { if (a.name === ALARM) refreshSelector
 // 再生窓が閉じられたら追跡を解除
 chrome.tabs.onRemoved.addListener(async (id) => {
   await loadPlayerTabId();
+  if (id === debuggerTabId) debuggerTabId = null; // 閉じられたら自動 detach 済み
   if (id === playerTabId) await setPlayerTabId(null);
 });
 
@@ -171,6 +220,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'closePlayer') { // PiP を閉じた → 再生タブも閉じる
       await closePlayer();
       sendResponse({ ok: true });
+      return;
+    }
+    if (msg.type === 'debuggerClick') { // content から：スキップボタンを本物クリック
+      const tabId = _sender?.tab?.id ?? playerTabId;
+      const ok = tabId != null ? await debuggerClickAt(tabId, msg.x, msg.y) : false;
+      sendResponse({ ok });
       return;
     }
     if (FORWARD_TYPES.includes(msg.type)) {

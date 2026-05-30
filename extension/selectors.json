@@ -3,7 +3,7 @@
   "updatedAt": "2026-05-30T00:00:00+09:00",
   "selectors": {
     "adShowing":            { "css": ".ad-showing",            "assertType": "static",  "assert": "exists" },
-    "skipButton":           { "css": ".ytp-skip-ad-button, .ytp-ad-skip-button", "assertType": "static",  "assert": "clickable-button" },
+    "skipButton":           { "css": ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button__text", "assertType": "static",  "assert": "clickable-button" },
     "nextButton":           { "css": ".ytp-next-button",       "assertType": "dynamic", "assert": "advances-video" },
     "prevButton":           { "css": ".ytp-prev-button",       "assertType": "static",  "assert": "exists" },
     "stillWatchingDialog":  { "css": "yt-confirm-dialog-renderer", "assertType": "static",  "assert": "dialog" },

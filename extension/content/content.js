@@ -30,6 +30,24 @@ function readAdState() {
   };
 }
 
+// スキップボタンの中心座標を background に渡し、CDP で本物のクリックを送らせる。
+// （合成クリックは YouTube に無視されるため。背景タブでも CDP Input は trusted 扱い）
+let lastSkipClick = 0;
+function requestSkipClick() {
+  const now = Date.now();
+  if (now - lastSkipClick < 600) return; // 連打防止
+  const btn = document.querySelector(selectors.skipButton.css);
+  if (!btn) return;
+  // テキスト要素だった場合は押せる本体（ボタン）へ寄せる
+  const target = btn.closest('button') || btn;
+  const r = target.getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return;
+  lastSkipClick = now;
+  const x = Math.round(r.left + r.width / 2);
+  const y = Math.round(r.top + r.height / 2);
+  try { chrome.runtime.sendMessage({ type: 'debuggerClick', x, y }); } catch {}
+}
+
 function tick() {
   try {
     if (!selectors || !settings || restarting) return;
@@ -44,6 +62,8 @@ function tick() {
       applyAdAction(action, { doc: document, video, selectors });
       // 自分がミュートしたフレームだけ weMuted を立てる
       if (video && video.muted && !wasMutedBefore) weMuted = true;
+      // スキップボタンが出ている = スキップ可能 → background に本物クリックを依頼
+      if (adState.adShowing && adState.skipButtonPresent) requestSkipClick();
       // 広告中のアクション変化を実況ログ
       if (adState.adShowing && action !== lastAdAction) {
         console.info('[yt-ext] 広告', action, '| skipBtn:', adState.skipButtonPresent,
