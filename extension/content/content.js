@@ -17,7 +17,8 @@ let restarting = false;
 let startedNotified = false; // 再生開始を background に1回だけ通知したか
 let lastAdAction = null;     // 広告中のアクション変化をログするため
 
-function getVideo() { return document.querySelector('video'); }
+// 本体プレイヤーの video（広告中も同じ要素に広告が乗る）。無ければ最初の video。
+function getVideo() { return document.querySelector('.html5-main-video') || document.querySelector('video'); }
 
 function readAdState() {
   const adShowing = !!document.querySelector(selectors.adShowing.css);
@@ -43,10 +44,13 @@ function tick() {
       applyAdAction(action, { doc: document, video, selectors });
       // 自分がミュートしたフレームだけ weMuted を立てる
       if (video && video.muted && !wasMutedBefore) weMuted = true;
-      // 広告中のアクション変化を実況ログ（mute-and-wait → click-skip 等）
+      // 広告中のアクション変化を実況ログ
       if (adState.adShowing && action !== lastAdAction) {
         console.info('[yt-ext] 広告', action, '| skipBtn:', adState.skipButtonPresent,
-          'enabled:', adState.skipButtonEnabled, '| hidden:', document.hidden);
+          'enabled:', adState.skipButtonEnabled, '| hidden:', document.hidden,
+          '| t:', video ? Math.floor(video.currentTime) : '-',
+          '/', video && isFinite(video.duration) ? Math.floor(video.duration) : '?',
+          '| rate:', video ? video.playbackRate : '-');
         lastAdAction = action;
       }
       // 広告開始エッジで実広告 DOM を記録
@@ -54,9 +58,10 @@ function tick() {
         const player = document.querySelector(selectors.adShowing.css);
         if (player) captureAdDom(player, { url: location.href });
       }
-      // 広告終了エッジで自分のミュートだけ解除
+      // 広告終了エッジで自分のミュートを解除＋再生速度を1xへ戻す
       if (!adState.adShowing && lastAdShowing) {
         unmuteIfNeeded(video, weMuted);
+        try { if (video && video.playbackRate !== 1) video.playbackRate = 1; } catch {}
         weMuted = false;
         lastAdAction = null;
       }

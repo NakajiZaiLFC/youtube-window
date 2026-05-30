@@ -14,11 +14,16 @@ export function applyAdAction(action, { doc, video, selectors }) {
   // 1) ミュート（早送りが効かない一瞬の保険）
   if (video && !video.muted) video.muted = true;
 
-  // 2) 広告動画を末尾へ早送り（= 実質スキップ）。これが効く環境が大半。
+  // 2) 広告動画を末尾へ早送り（= 実質スキップ）。効く環境が大半。
   try {
     if (video && isFinite(video.duration) && video.duration > 0) {
       video.currentTime = video.duration;
     }
+  } catch {}
+
+  // 2.5) 早送りがクランプされる広告向けの保険: 再生速度を最大化して一瞬で消化する
+  try {
+    if (video && video.playbackRate !== 16) video.playbackRate = 16;
   } catch {}
 
   // 3) スキップボタンがあればクリックも試す（click + 実ポインタ操作）
