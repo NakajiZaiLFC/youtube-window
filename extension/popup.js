@@ -235,10 +235,11 @@ async function enterPiP() {
     if (cur && cur.id != null) chrome.windows.update(cur.id, { state: 'minimized' });
   } catch {}
 
-  // PiP を閉じたら発射台の小窓ごと片付ける（残骸を残さない）
+  // PiP を閉じたら: 再生中の YouTube タブを閉じ、発射台の小窓も片付ける（残骸を残さない）
   win.addEventListener('pagehide', () => {
     pipWin = null;
     pipPending = false;
+    try { chrome.runtime.sendMessage({ type: 'closePlayer' }); } catch {}
     try { window.close(); } catch {}
   });
   return true;

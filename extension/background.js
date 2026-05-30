@@ -113,6 +113,16 @@ async function forwardToPlayer(msg) {
   }
 }
 
+// 再生タブ（と隔離した専用ウィンドウ）を閉じる。
+async function closePlayer() {
+  await loadPlayerTabId();
+  if (playerTabId != null) {
+    try { await chrome.tabs.remove(playerTabId); } catch {} // 専用ウィンドウの唯一のタブなら窓ごと閉じる
+  }
+  await setPlayerTabId(null);
+  try { await chrome.storage.local.remove('playerWindowId'); } catch {}
+}
+
 const FORWARD_TYPES = ['play', 'pause', 'seek', 'next', 'prev', 'setLoop', 'getStatus'];
 
 async function refreshSelectors() {
@@ -155,6 +165,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }
     if (msg.type === 'playerStarted') { // content から（再生開始通知）
       await onPlayerStarted();
+      sendResponse({ ok: true });
+      return;
+    }
+    if (msg.type === 'closePlayer') { // PiP を閉じた → 再生タブも閉じる
+      await closePlayer();
       sendResponse({ ok: true });
       return;
     }
