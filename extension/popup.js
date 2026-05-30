@@ -126,6 +126,7 @@ async function poll() {
 // ── トランスポート ───────────────────────────────────────────
 // 再生ボタン = 未起動なら開始 / 起動済みなら 再生⇔一時停止
 $('playpause').onclick = async () => {
+  await maybePin();            // ← 必ず最初に（user activation 維持のため）
   const o = await bg({ type: 'isOpen' });
   if (!o || !o.open) {
     const s = await getSettings();
@@ -138,18 +139,19 @@ $('playpause').onclick = async () => {
   setTimeout(poll, 200);
 };
 
-$('next').onclick = async () => { await bg({ type: 'next' }); setTimeout(poll, 600); };
-$('prev').onclick = async () => { await bg({ type: 'prev' }); setTimeout(poll, 600); };
+$('next').onclick = async () => { await maybePin(); await bg({ type: 'next' }); setTimeout(poll, 600); };
+$('prev').onclick = async () => { await maybePin(); await bg({ type: 'prev' }); setTimeout(poll, 600); };
 
-// ±10秒（絶対シークで実現）
+// ±15秒（絶対シークで実現）
 async function nudge(delta) {
+  await maybePin();
   if (!seekDur) return;
   const t = Math.max(0, Math.min(seekDur, seekCur + delta));
   await bg({ type: 'seek', value: t });
   setTimeout(poll, 200);
 }
-$('back10').onclick = () => nudge(-10);
-$('fwd10').onclick = () => nudge(10);
+$('back15').onclick = () => nudge(-15);
+$('fwd15').onclick = () => nudge(15);
 
 // ── ループ: 常時ON（ロック・クリック不要） ──────────────────
 // 読み込み時に必ずONへ固定する。アイコンは点灯した状態表示のみ。
@@ -182,14 +184,26 @@ $('seek').addEventListener('change', async () => {
 const supportsPiP = 'documentPictureInPicture' in window;
 
 let pipPending = false;
+let autoPinArmed = false; // 初回操作で最前面固定するか
+
+// 初回の操作（再生など）で一度だけ最前面固定する。
+// Document PiP の requestWindow は user activation 必須なので、各ボタン処理の
+// 「先頭」で await maybePin() を呼ぶこと（手前に別の await を挟むと固定が弾かれる）。
+async function maybePin() {
+  if (!autoPinArmed) return;
+  autoPinArmed = false;
+  const ok = await enterPiP();
+  if (!ok) autoPinArmed = true; // 失敗時は次の操作で再試行
+}
+
 async function enterPiP() {
-  if (!supportsPiP) { setStatus('このChromeはPiP非対応', true); return; }
-  if (pipPending || (pipWin && !pipWin.closed)) { try { pipWin && pipWin.focus(); } catch {} return; }
+  if (!supportsPiP) return false;
+  if (pipPending || (pipWin && !pipWin.closed)) { try { pipWin && pipWin.focus(); } catch {} return true; }
   pipPending = true;
   let win;
   try {
     win = await documentPictureInPicture.requestWindow({ width: 460, height: 200 });
-  } catch { pipPending = false; setStatus('最前面固定に失敗', true); return; }
+  } catch { pipPending = false; return false; }
   pipWin = win;
   pipPending = false;
 
@@ -204,40 +218,19 @@ async function enterPiP() {
   win.document.body.append(wrap);
   root = win.document;
 
-  const fb = $('float');
-  if (fb) { fb.title = '最前面固定を解除'; fb.classList.add('on'); }
+  // 発射台の小窓（最前面にならない方）はもう不要 → 最小化して隠す
+  try {
+    const cur = await chrome.windows.getCurrent();
+    if (cur && cur.id != null) chrome.windows.update(cur.id, { state: 'minimized' });
+  } catch {}
 
+  // PiP を閉じたら発射台の小窓ごと片付ける（残骸を残さない）
   win.addEventListener('pagehide', () => {
-    document.body.appendChild(wrap);
-    root = document;
     pipWin = null;
     pipPending = false;
-    const f = $('float');
-    if (f) { f.title = '最前面に固定'; f.classList.remove('on'); }
+    try { window.close(); } catch {}
   });
-}
-
-// 最前面固定の自動アーム。Document PiP はブラウザ仕様で「ユーザー操作」が必須のため
-// 完全な無操作起動はできない。小窓内の最初のクリックで自動的に最前面へ固定する。
-function armAutoPin() {
-  if (!supportsPiP) { setStatus('このChromeは最前面固定に非対応', true); return; }
-  setStatus('画面をクリックで最前面に固定', true);
-  const once = () => {
-    document.removeEventListener('pointerdown', once, true);
-    enterPiP();
-  };
-  document.addEventListener('pointerdown', once, true);
-}
-
-function wireFloat() {
-  const el = $('float');
-  // 独立小窓（常にこのモード）: Document PiP で最前面に固定／解除
-  el.textContent = '📌';
-  el.title = supportsPiP ? '最前面に固定' : '最前面固定は非対応';
-  el.onclick = () => {
-    if (pipWin && !pipWin.closed) { pipWin.close(); return; }
-    enterPiP();
-  };
+  return true;
 }
 
 // 拡張アイコン押下時は常に独立小窓で開く（既に開いていればそれを前面化）。
@@ -248,7 +241,10 @@ async function autoPopout() {
     for (const w of wins) {
       for (const t of (w.tabs || [])) {
         if (t.url && t.url.includes('popup.html?panel=1')) {
-          await chrome.windows.update(w.id, { focused: true });
+          // 最小化済み = PiP で最前面表示中。空シェルを呼び戻さずそのまま閉じる
+          if (w.state !== 'minimized') {
+            await chrome.windows.update(w.id, { focused: true });
+          }
           window.close();
           return;
         }
@@ -283,9 +279,8 @@ async function load() {
   // ツールバーから開かれた時は常に独立小窓へ転送（インラインpopupは使わない）
   if (!isPanel) { await autoPopout(); return; }
   document.title = 'Hi-Fi Player';
-  wireFloat();
-  await lockLoopOn();   // ループ常時ON
-  armAutoPin();         // 最前面固定を自動アーム
+  await lockLoopOn();              // ループ常時ON
+  if (supportsPiP) autoPinArmed = true; // 初回操作で最前面固定
   await poll();
   setInterval(poll, 1000);
 }
