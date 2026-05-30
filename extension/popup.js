@@ -202,7 +202,7 @@ async function enterPiP() {
   pipPending = true;
   let win;
   try {
-    win = await documentPictureInPicture.requestWindow({ width: 460, height: 220 });
+    win = await documentPictureInPicture.requestWindow({ width: 460, height: 200 });
   } catch { pipPending = false; return false; }
   pipWin = win;
   pipPending = false;
@@ -219,6 +219,14 @@ async function enterPiP() {
   root = win.document;
 
   // 位置はブラウザ既定（ドラッグした位置を Chrome が記憶する）。最前面固定だけが目的。
+
+  // PiP のサイズ変更をロック: リサイズされたら既定サイズへ戻す（resizeTo 許可時のみ有効）
+  let pipResizing = false;
+  win.addEventListener('resize', () => {
+    if (pipResizing) { pipResizing = false; return; }
+    pipResizing = true;
+    try { win.resizeTo(460, 200); } catch { pipResizing = false; }
+  });
 
   // 発射台の小窓（最前面にならない方）はもう不要 → 最小化して隠す
   try {
@@ -255,7 +263,7 @@ async function autoPopout() {
   } catch {}
   try {
     await chrome.windows.create({
-      url: panelUrl, type: 'popup', width: 480, height: 230, focused: true,
+      url: panelUrl, type: 'popup', width: 480, height: 210, focused: true,
     });
   } catch {}
   window.close();
@@ -288,8 +296,26 @@ async function load() {
     // ボタン押下時はボタン側の処理が先に走り、ここでの maybePin は冪等で no-op になる。
     document.addEventListener('click', () => { maybePin(); });
   }
+  lockLauncherSize();             // 小窓のサイズ変更をロック
   await poll();
   setInterval(poll, 1000);
+}
+
+// launcher 小窓のサイズ変更をロック: 既定サイズへ戻す（chrome.windows API で確実に）
+function lockLauncherSize() {
+  const W = 480, H = 210;
+  let busy = false;
+  window.addEventListener('resize', async () => {
+    if (busy || (pipWin && !pipWin.closed)) return; // PiP中(=最小化)は無視
+    busy = true;
+    try {
+      const cur = await chrome.windows.getCurrent();
+      if (cur && cur.state !== 'minimized' && (cur.width !== W || cur.height !== H)) {
+        await chrome.windows.update(cur.id, { width: W, height: H });
+      }
+    } catch {}
+    busy = false;
+  });
 }
 
 load().catch(() => { setStatus('初期化に失敗', true); });
