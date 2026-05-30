@@ -39,8 +39,8 @@ function setStatus(text, idle) {
 }
 
 function setTimes(cur, dur) {
-  const t = $('times');
-  if (t) t.textContent = dur ? ` · ${fmt(cur)} / ${fmt(dur)}` : '';
+  const e = $('elapsed'); if (e) e.textContent = fmt(cur);
+  const d = $('duration'); if (d) d.textContent = fmt(dur);
 }
 
 // ウォークマン風マーキー: はみ出す時だけ端で止まりつつ往復スクロール
@@ -218,6 +218,15 @@ async function enterPiP() {
   win.document.body.append(wrap);
   root = win.document;
 
+  // 元の拡張アイコン付近（画面右上）へ寄せる（ブラウザが許可する場合のみ）
+  try {
+    const W = 460, H = 200, M = 16;
+    const left = Math.max(0, Math.round((screen.availLeft || 0) + screen.availWidth - W - M));
+    const top = Math.round((screen.availTop || 0) + M);
+    win.resizeTo(W, H);
+    win.moveTo(left, top);
+  } catch {}
+
   // 発射台の小窓（最前面にならない方）はもう不要 → 最小化して隠す
   try {
     const cur = await chrome.windows.getCurrent();
@@ -251,9 +260,18 @@ async function autoPopout() {
       }
     }
   } catch {}
+  // 元の拡張アイコン付近（画面右上）に出す
+  const W = 480, H = 210, M = 16;
+  let pos = {};
+  try {
+    pos = {
+      left: Math.max(0, Math.round((screen.availLeft || 0) + screen.availWidth - W - M)),
+      top: Math.round((screen.availTop || 0) + M),
+    };
+  } catch {}
   try {
     await chrome.windows.create({
-      url: panelUrl, type: 'popup', width: 480, height: 210, focused: true,
+      url: panelUrl, type: 'popup', width: W, height: H, ...pos, focused: true,
     });
   } catch {}
   window.close();

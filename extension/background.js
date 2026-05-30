@@ -65,12 +65,31 @@ async function openPlayer(url) {
   return { ok: true, reused: false };
 }
 
-// content から「再生が始まった」通知が来たら、元のタブへフォーカスを戻して再生タブを裏へ。
+// content から「再生が始まった」通知が来たら、再生タブを画面から隠す。
+// 専用ウィンドウへ隔離して最小化する（タブ移動はリロードを伴わない＝音声は継続）。
+// これでタブ一覧にも画面にも YouTube が出なくなり、操作は PiP 小窓だけで完結する。
 async function onPlayerStarted() {
-  const got = await chrome.storage.local.get('prevActiveTabId');
+  await loadPlayerTabId();
+  const got = await chrome.storage.local.get(['prevActiveTabId', 'playerWindowId']);
   const prev = got.prevActiveTabId;
-  if (prev == null) return;
-  try { await chrome.tabs.update(prev, { active: true }); } catch {}
+
+  // まず元のタブへフォーカスを戻す（YouTube を前面から外す）
+  if (prev != null) { try { await chrome.tabs.update(prev, { active: true }); } catch {} }
+
+  if (playerTabId == null) return;
+  try {
+    const tab = await chrome.tabs.get(playerTabId);
+    // 既に専用ウィンドウへ隔離済みなら、そのウィンドウを最小化するだけ
+    if (got.playerWindowId != null && tab.windowId === got.playerWindowId) {
+      try { await chrome.windows.update(got.playerWindowId, { state: 'minimized' }); } catch {}
+      return;
+    }
+    // 専用ウィンドウへ移動して最小化（再生継続のままバックグラウンド音声に）
+    const win = await chrome.windows.create({ tabId: playerTabId, state: 'minimized' });
+    await chrome.storage.local.set({ playerWindowId: win?.id ?? null });
+  } catch {
+    // フォールバック: タブが取得できない等。元タブへ戻すだけで終了
+  }
 }
 
 // popup からの制御メッセージを再生タブへ転送する。

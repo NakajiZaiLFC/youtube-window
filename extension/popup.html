@@ -77,13 +77,14 @@
           background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.3); }
 
   /* 状態 + 時間 */
-  #status { display:flex; align-items:center; gap:6px; margin-top:9px; padding:0 4px;
-            font-size:12px; font-weight:500; color:var(--text-2);
-            font-variant-numeric:tabular-nums; }
+  /* シーク直下の時間: 左=現在 / 右=この動画の総時間 */
+  .times { display:flex; justify-content:space-between; margin-top:6px; padding:0 6px;
+           font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  #status { display:flex; align-items:center; gap:6px; margin-top:6px; padding:0 6px;
+            font-size:12px; font-weight:500; color:var(--text-2); }
   #status::before { content:""; width:7px; height:7px; border-radius:50%;
                     background:var(--accent); flex:none; }
   #status.idle::before { background:var(--text-3); }
-  #times { margin-left:auto; color:var(--text-3); }
 
   #ver { display:none; }
 </style>
@@ -115,7 +116,8 @@
       <button id="next" class="bbtn" title="次の曲" aria-label="次の曲">⏭</button>
     </div>
 
-    <div id="status" class="idle">停止中<span id="times"></span></div>
+    <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
+    <div id="status" class="idle">停止中</div>
     <button id="export" hidden></button>
     <span id="ver"></span>
   </div>
