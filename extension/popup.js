@@ -140,8 +140,21 @@ $('export').onclick = async () => {
   }
 };
 
+// ?panel=1 付きで開かれた = 既にポップアウト済みの独立小窓
+const isPanel = location.search.includes('panel');
+
+function wirePopout() {
+  const el = $('popout');
+  if (isPanel) { el.style.display = 'none'; return; } // 小窓では非表示
+  el.onclick = () => chrome.windows.create({
+    url: chrome.runtime.getURL('popup.html?panel=1'),
+    type: 'popup', width: 320, height: 400, focused: true,
+  });
+}
+
 async function load() {
   try { $('ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch {}
+  wirePopout();
   const s = await getSettings();
   $('loop').classList.toggle('on', s.loop);
   wireLoop();

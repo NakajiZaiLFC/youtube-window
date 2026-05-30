@@ -24,9 +24,10 @@
   .brand-name { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
   #ver { font-size:10px; font-weight:500; color:var(--text-3); font-variant-numeric:tabular-nums; }
   /* loop = icon-only ghost toggle */
-  #loop { font-size:18px; line-height:1; background:none; border:none; cursor:pointer;
+  .hbtns { display:flex; align-items:center; gap:2px; }
+  #loop, #popout { font-size:16px; line-height:1; background:none; border:none; cursor:pointer;
           color:var(--text-3); width:30px; height:30px; border-radius:50%; transition:.15s; }
-  #loop:hover { background:var(--fill); }
+  #loop:hover, #popout:hover { background:var(--fill); }
   #loop.on { color:var(--accent); background:rgba(244,162,89,.14); }
 
   /* now playing */
@@ -76,7 +77,10 @@
       <span class="brand-name">Hi-Fi Player</span>
       <span id="ver"></span>
     </div>
-    <button id="loop" title="リピート" aria-label="リピート">🔁</button>
+    <div class="hbtns">
+      <button id="popout" title="小窓で開く" aria-label="小窓で開く">⧉</button>
+      <button id="loop" title="リピート" aria-label="リピート">🔁</button>
+    </div>
   </div>
 
   <section class="now-card">
