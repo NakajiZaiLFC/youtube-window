@@ -151,17 +151,15 @@ async function nudge(delta) {
 $('back10').onclick = () => nudge(-10);
 $('fwd10').onclick = () => nudge(10);
 
-// ── ループ（アイコンのみ） ──────────────────────────────────
-function wireLoop() {
+// ── ループ: 常時ON（ロック・クリック不要） ──────────────────
+// 読み込み時に必ずONへ固定する。アイコンは点灯した状態表示のみ。
+async function lockLoopOn() {
   const el = $('loop');
-  const toggle = async () => {
-    const on = !el.classList.contains('on');
-    el.classList.toggle('on', on);
-    await setSetting('loop', on);
-    bg({ type: 'setLoop', value: on });
-  };
-  el.onclick = toggle;
-  el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+  el.classList.add('on');
+  el.title = 'リピート: 常時ON';
+  el.setAttribute('aria-disabled', 'true');
+  await setSetting('loop', true);
+  bg({ type: 'setLoop', value: true });
 }
 
 // ── シークバー ─────────────────────────────────────────────
@@ -183,14 +181,17 @@ $('seek').addEventListener('change', async () => {
 // panel（独立小窓）モード: そこから Document PiP を起動して最前面に固定。
 const supportsPiP = 'documentPictureInPicture' in window;
 
+let pipPending = false;
 async function enterPiP() {
   if (!supportsPiP) { setStatus('このChromeはPiP非対応', true); return; }
-  if (pipWin && !pipWin.closed) { try { pipWin.focus(); } catch {} return; }
+  if (pipPending || (pipWin && !pipWin.closed)) { try { pipWin && pipWin.focus(); } catch {} return; }
+  pipPending = true;
   let win;
   try {
     win = await documentPictureInPicture.requestWindow({ width: 460, height: 200 });
-  } catch { setStatus('最前面固定に失敗', true); return; }
+  } catch { pipPending = false; setStatus('最前面固定に失敗', true); return; }
   pipWin = win;
+  pipPending = false;
 
   // スタイルを移植
   document.querySelectorAll('style, link[rel="stylesheet"]').forEach((s) => {
@@ -210,33 +211,56 @@ async function enterPiP() {
     document.body.appendChild(wrap);
     root = document;
     pipWin = null;
+    pipPending = false;
     const f = $('float');
     if (f) { f.title = '最前面に固定'; f.classList.remove('on'); }
   });
 }
 
+// 最前面固定の自動アーム。Document PiP はブラウザ仕様で「ユーザー操作」が必須のため
+// 完全な無操作起動はできない。小窓内の最初のクリックで自動的に最前面へ固定する。
+function armAutoPin() {
+  if (!supportsPiP) { setStatus('このChromeは最前面固定に非対応', true); return; }
+  setStatus('画面をクリックで最前面に固定', true);
+  const once = () => {
+    document.removeEventListener('pointerdown', once, true);
+    enterPiP();
+  };
+  document.addEventListener('pointerdown', once, true);
+}
+
 function wireFloat() {
   const el = $('float');
-  if (isPanel) {
-    // 独立小窓: Document PiP で最前面に固定
-    el.textContent = '📌';
-    el.title = supportsPiP ? '最前面に固定' : '最前面固定は非対応';
-    el.onclick = () => {
-      if (pipWin && !pipWin.closed) { pipWin.close(); return; }
-      enterPiP();
-    };
-  } else {
-    // ツールバー popup: 永続する独立小窓へポップアウト
-    el.textContent = '⧉';
-    el.title = '小窓で開く';
-    el.onclick = () => {
-      chrome.windows.create({
-        url: chrome.runtime.getURL('popup.html?panel=1'),
-        type: 'popup', width: 480, height: 210, focused: true,
-      });
-      window.close();
-    };
-  }
+  // 独立小窓（常にこのモード）: Document PiP で最前面に固定／解除
+  el.textContent = '📌';
+  el.title = supportsPiP ? '最前面に固定' : '最前面固定は非対応';
+  el.onclick = () => {
+    if (pipWin && !pipWin.closed) { pipWin.close(); return; }
+    enterPiP();
+  };
+}
+
+// 拡張アイコン押下時は常に独立小窓で開く（既に開いていればそれを前面化）。
+async function autoPopout() {
+  const panelUrl = chrome.runtime.getURL('popup.html?panel=1');
+  try {
+    const wins = await chrome.windows.getAll({ populate: true });
+    for (const w of wins) {
+      for (const t of (w.tabs || [])) {
+        if (t.url && t.url.includes('popup.html?panel=1')) {
+          await chrome.windows.update(w.id, { focused: true });
+          window.close();
+          return;
+        }
+      }
+    }
+  } catch {}
+  try {
+    await chrome.windows.create({
+      url: panelUrl, type: 'popup', width: 480, height: 210, focused: true,
+    });
+  } catch {}
+  window.close();
 }
 
 // ── デバッグ: 広告DOM書き出し（UIからは隠しているが機能は残す） ──
@@ -256,11 +280,12 @@ if (exportBtn) {
 
 async function load() {
   try { $('ver').textContent = 'v' + chrome.runtime.getManifest().version; } catch {}
-  if (isPanel) document.title = 'Hi-Fi Player';
+  // ツールバーから開かれた時は常に独立小窓へ転送（インラインpopupは使わない）
+  if (!isPanel) { await autoPopout(); return; }
+  document.title = 'Hi-Fi Player';
   wireFloat();
-  const s = await getSettings();
-  $('loop').classList.toggle('on', s.loop);
-  wireLoop();
+  await lockLoopOn();   // ループ常時ON
+  armAutoPin();         // 最前面固定を自動アーム
   await poll();
   setInterval(poll, 1000);
 }
