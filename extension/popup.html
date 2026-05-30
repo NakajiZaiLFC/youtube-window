@@ -61,7 +61,8 @@
   #playpause:active { transform:scale(.93); }
 
   /* 下段トランスポート */
-  .bar { display:flex; align-items:center; gap:8px; padding:14px 2px 2px; }
+  .bar { display:grid; grid-template-columns:auto auto 1fr auto auto; align-items:center;
+         column-gap:8px; padding:14px 2px 2px; }
   .bbtn { position:relative; border:none; background:none; cursor:pointer; color:var(--text);
           width:46px; height:46px; display:grid; place-items:center; font-size:24px;
           border-radius:10px; transition:opacity .15s, transform .1s, background .15s; }
@@ -70,16 +71,15 @@
   .bbtn .n { position:absolute; bottom:7px; right:4px; font-size:10px; font-weight:700;
              color:var(--text-2); }
 
-  .seekwrap { flex:1; min-width:0; }
-  #seek { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
-          background:var(--fill-2); cursor:pointer; }
+  #seek { grid-column:3; -webkit-appearance:none; appearance:none; width:100%; height:4px;
+          border-radius:2px; background:var(--fill-2); cursor:pointer; }
   #seek::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
           background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.3); }
 
   /* 状態 + 時間 */
-  /* シーク直下の時間: 左=現在 / 右=この動画の総時間 */
-  .times { display:flex; justify-content:space-between; margin-top:6px; padding:0 6px;
-           font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  /* シーク列(3)の真下に揃える: 左端=現在 / 右端=この動画の総時間 */
+  .times { grid-column:3; grid-row:2; display:flex; justify-content:space-between;
+           margin-top:7px; font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
   #status { display:flex; align-items:center; gap:6px; margin-top:6px; padding:0 6px;
             font-size:12px; font-weight:500; color:var(--text-2); }
   #status::before { content:""; width:7px; height:7px; border-radius:50%;
@@ -109,14 +109,11 @@
     <div class="bar">
       <button id="prev" class="bbtn" title="前の曲" aria-label="前の曲">⏮</button>
       <button id="back15" class="bbtn" title="15秒戻す" aria-label="15秒戻す">↺<span class="n">15</span></button>
-      <div class="seekwrap">
-        <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
-      </div>
+      <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
       <button id="fwd15" class="bbtn" title="15秒進む" aria-label="15秒進む">↻<span class="n">15</span></button>
       <button id="next" class="bbtn" title="次の曲" aria-label="次の曲">⏭</button>
+      <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
     </div>
-
-    <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
     <div id="status" class="idle">停止中</div>
     <button id="export" hidden></button>
     <span id="ver"></span>
