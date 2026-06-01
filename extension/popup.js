@@ -207,6 +207,9 @@ async function enterPiP() {
   pipWin = win;
   pipPending = false;
 
+  // タイトルバーの文字を消す（空だと拡張名がフォールバック表示されるため空白で潰す）
+  try { win.document.title = ' '; } catch {}
+
   // スタイルを移植
   document.querySelectorAll('style, link[rel="stylesheet"]').forEach((s) => {
     win.document.head.appendChild(s.cloneNode(true));
