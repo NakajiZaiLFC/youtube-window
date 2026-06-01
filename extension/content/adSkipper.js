@@ -23,7 +23,7 @@ export function applyAdAction(action, { doc, video, selectors }) {
 
   // 2.5) 早送りがクランプされる広告向けの保険: 再生速度を最大化して一瞬で消化する
   try {
-    if (video && video.playbackRate !== 16) video.playbackRate = 16;
+    if (video && video.playbackRate !== 32) video.playbackRate = 32;
   } catch {}
 
   // 3) スキップボタンがあればクリックも試す（click + 実ポインタ操作）
