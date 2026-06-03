@@ -207,8 +207,11 @@ async function enterPiP() {
   pipWin = win;
   pipPending = false;
 
-  // タイトルバーの文字を消す（空だと拡張名がフォールバック表示されるため空白で潰す）
-  try { win.document.title = ' '; } catch {}
+  // タイトルバーの文字を消す。
+  // 注意: 空文字や半角スペースだけだとトリムされて「空」扱いになり、拡張機能名(manifest.name)が
+  // フォールバック表示される。そこで空白に見えて空白class扱いされない Braille 空白(U+2800)を入れて
+  // フォールバックを抑止しつつ何も表示させない。
+  try { win.document.title = '⠀'; } catch {}
 
   // スタイルを移植
   document.querySelectorAll('style, link[rel="stylesheet"]').forEach((s) => {

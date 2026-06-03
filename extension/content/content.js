@@ -51,8 +51,11 @@ function requestSkipClick() {
 function tick() {
   try {
     if (!selectors || !settings || restarting) return;
-    // 1) ダイアログ回避
-    dismissIfPresent(document, selectors);
+    // 1) ダイアログ回避（広告ブロッカー警告などは DOM ごと除去 → 一時停止されていたら再開）
+    if (dismissIfPresent(document, selectors)) {
+      const v = getVideo();
+      if (v && v.paused) v.play().catch(() => {});
+    }
     // 2) 広告処理
     if (settings.autoSkip) {
       const adState = readAdState();
